@@ -88,8 +88,8 @@ fn blackjack_sum(hand: &Vec<Card>) -> u8 {
 
   let has_ace = hand.iter().any(|c| matches!(&c.value, Value::Ace));
 
-  if has_ace && sum <= 10 {
-    sum += 11;
+  if has_ace && sum <= 11 {
+    sum += 10;
   }
 
   return sum
