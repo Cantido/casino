@@ -1,6 +1,6 @@
-use std::io;
-use std::fmt;
+use std::{fmt, fs, fs::OpenOptions, io, io::prelude::*, io::Read, io::SeekFrom, io::Write};
 use clap::Parser;
+use directories::{ProjectDirs};
 use casino::cards::{Card, Value, shoe};
 
 #[derive(Parser, Debug)]
@@ -12,11 +12,43 @@ struct Args {
 fn main() {
   let args = Args::parse();
 
-  println!("Enter your bet: ");
-  let mut bet_input = String::new();
-  io::stdin().read_line(&mut bet_input).unwrap();
+  let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
+  let data_dir = project_dirs.data_dir();
 
-  let bet: i32 = bet_input.trim().parse().unwrap();
+  fs::create_dir_all(data_dir).expect("Couldn't create data dir!");
+
+  let mut bankroll_file = OpenOptions::new().read(true).write(true).create(true).open(data_dir.join("bankroll")).expect("Couldn't open your bankroll file!");
+
+  let mut bankroll_buffer = String::new();
+
+  bankroll_file.read_to_string(&mut bankroll_buffer).expect("Couldn't read your bankroll file!");
+
+  let mut bankroll: i32 =
+    if bankroll_buffer.is_empty() {
+      bankroll_file.write_all(b"1000\n");
+      1000
+    } else {
+      bankroll_buffer.trim().parse().unwrap()
+    };
+
+
+  println!("Your money: ${bankroll}.00");
+  let mut bet: i32 = 0;
+
+  loop {
+    println!("Enter your bet: ");
+    let mut bet_input = String::new();
+    io::stdin().read_line(&mut bet_input).unwrap();
+
+    bet = bet_input.trim().parse().unwrap();
+    if bet <= 0 {
+      println!("Try again, wiseguy")
+    } else if bet > bankroll {
+      println!("You don't have that much money! Try again.");
+    } else {
+      break;
+    }
+  }
 
   println!("Betting ${bet}.00");
 
@@ -47,7 +79,8 @@ fn main() {
         println!("Your hand: {} ({})", hand_to_string(&your_hand), sum);
 
         if sum > 21 {
-          println!("BUST! You lose ${bet}.00");
+          bankroll -= bet;
+          println!("BUST! You lose ${bet}.00. You now have ${bankroll}.00");
           break;
         }
       },
@@ -71,13 +104,22 @@ fn main() {
     }
 
     if dealer_sum > 21 {
-      println!("DEALER BUST! You win ${bet}.00");
+      bankroll += bet;
+      println!("DEALER BUST! You receive ${bet}.00. You now have ${bankroll}.00");
     } else if dealer_sum == player_sum {
       println!("PUSH! Nobody wins.");
     } else if dealer_sum > player_sum {
-      println!("YOU LOSE! You lose ${bet}.00");
+      bankroll -= bet;
+      println!("YOU LOSE! You lose ${bet}.00. You now have ${bankroll}.00");
+    } else {
+      bankroll += bet;
+      println!("YOU WIN! You receive ${bet}.00. You now have ${bankroll}.00");
     }
   }
+
+  bankroll_file.set_len(0);
+  bankroll_file.seek(SeekFrom::Start(0));
+  bankroll_file.write_all(bankroll.to_string().as_bytes());
 }
 
 fn blackjack_sum(hand: &Vec<Card>) -> u8 {
