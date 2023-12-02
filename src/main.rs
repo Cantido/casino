@@ -1,5 +1,6 @@
 use std::{fmt, fs, fs::OpenOptions, io, io::prelude::*, io::Read, io::SeekFrom, io::Write};
 use rusty_money::{Money, Round, iso};
+use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
 use casino::cards::{Card, Value, shoe};
@@ -42,13 +43,12 @@ fn main() {
     let mut bet_input = String::new();
     io::stdin().read_line(&mut bet_input).unwrap();
 
-    bet = Money::from_str(bet_input.trim().trim_start_matches('$'), iso::USD).unwrap().round(2, Round::HalfDown);
+    bet = Money::from_str(bet_input.trim().trim_start_matches('$'), iso::USD).unwrap().round(2, Round::HalfUp);
     if bet.is_negative() || bet.is_zero() {
       println!("Try again, wiseguy")
     } else if bet > bankroll {
       println!("You don't have that much money! Try again.");
     } else {
-      println!("Betting {bet}.");
       break;
     }
   }
@@ -114,6 +114,11 @@ fn main() {
     } else if dealer_sum > player_sum {
       bankroll -= bet.clone();
       println!("YOU LOSE! You lose {bet}. You now have {bankroll}");
+    } else if your_hand.len() == 2 && player_sum == 21 {
+      let payout_ratio = Decimal::new(15, 1);
+      let payout = (bet * payout_ratio).round(2, Round::HalfUp);
+      bankroll += payout.clone();
+      println!("BLACKJACK! You receive {payout}. You now have {bankroll}");
     } else {
       bankroll += bet.clone();
       println!("YOU WIN! You receive {bet}. You now have {bankroll}");

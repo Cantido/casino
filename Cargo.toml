@@ -9,4 +9,5 @@ edition = "2021"
 clap = { version = "4.4.10", features = ["derive"] }
 directories = "5.0.1"
 rand = "0.8.5"
+rust_decimal = "1.33.1"
 rusty-money = "0.4.1"
