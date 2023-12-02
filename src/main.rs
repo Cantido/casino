@@ -1,4 +1,5 @@
 use std::{fmt, fs, fs::OpenOptions, io, io::prelude::*, io::Read, io::SeekFrom, io::Write};
+use rusty_money::{Money, Round, iso};
 use clap::Parser;
 use directories::{ProjectDirs};
 use casino::cards::{Card, Value, shoe};
@@ -23,34 +24,36 @@ fn main() {
 
   bankroll_file.read_to_string(&mut bankroll_buffer).expect("Couldn't read your bankroll file!");
 
-  let mut bankroll: i32 =
+  let mut bankroll =
     if bankroll_buffer.is_empty() {
-      bankroll_file.write_all(b"1000\n");
-      1000
+      bankroll_file.write_all(b"$1000.00\n");
+      Money::from_major(1_000, iso::USD)
     } else {
-      bankroll_buffer.trim().parse().unwrap()
+      let stramt = bankroll_buffer.trim().trim_start_matches('$');
+      Money::from_str(stramt, iso::USD).unwrap()
     };
 
 
-  println!("Your money: ${bankroll}.00");
-  let mut bet: i32 = 0;
+  println!("Your money: {bankroll}");
+  let mut bet;
 
   loop {
     println!("Enter your bet: ");
     let mut bet_input = String::new();
     io::stdin().read_line(&mut bet_input).unwrap();
 
-    bet = bet_input.trim().parse().unwrap();
-    if bet <= 0 {
+    bet = Money::from_str(bet_input.trim().trim_start_matches('$'), iso::USD).unwrap().round(2, Round::HalfDown);
+    if bet.is_negative() || bet.is_zero() {
       println!("Try again, wiseguy")
     } else if bet > bankroll {
       println!("You don't have that much money! Try again.");
     } else {
+      println!("Betting {bet}.");
       break;
     }
   }
 
-  println!("Betting ${bet}.00");
+  println!("Betting {bet}");
 
   let mut shoe = shoe(4);
 
@@ -79,8 +82,8 @@ fn main() {
         println!("Your hand: {} ({})", hand_to_string(&your_hand), sum);
 
         if sum > 21 {
-          bankroll -= bet;
-          println!("BUST! You lose ${bet}.00. You now have ${bankroll}.00");
+          bankroll -= bet.clone();
+          println!("BUST! You lose {bet}. You now have {bankroll}");
           break;
         }
       },
@@ -104,16 +107,16 @@ fn main() {
     }
 
     if dealer_sum > 21 {
-      bankroll += bet;
-      println!("DEALER BUST! You receive ${bet}.00. You now have ${bankroll}.00");
+      bankroll += bet.clone();
+      println!("DEALER BUST! You receive {bet}. You now have {bankroll}");
     } else if dealer_sum == player_sum {
       println!("PUSH! Nobody wins.");
     } else if dealer_sum > player_sum {
-      bankroll -= bet;
-      println!("YOU LOSE! You lose ${bet}.00. You now have ${bankroll}.00");
+      bankroll -= bet.clone();
+      println!("YOU LOSE! You lose {bet}. You now have {bankroll}");
     } else {
-      bankroll += bet;
-      println!("YOU WIN! You receive ${bet}.00. You now have ${bankroll}.00");
+      bankroll += bet.clone();
+      println!("YOU WIN! You receive {bet}. You now have {bankroll}");
     }
   }
 
