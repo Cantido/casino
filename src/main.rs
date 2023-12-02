@@ -34,7 +34,6 @@ fn main() {
       Money::from_str(stramt, iso::USD).unwrap()
     };
 
-
   println!("Your money: {bankroll}");
   let mut bet;
 
@@ -123,6 +122,15 @@ fn main() {
       bankroll += bet.clone();
       println!("YOU WIN! You receive {bet}. You now have {bankroll}");
     }
+  }
+
+  if bankroll.is_zero() {
+    bankroll += Money::from_major(1_000, iso::USD);
+    println!("* Unfortunately, you've run out of money.");
+    println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
+    println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
+    println!("* \"Oh, and always remember the name: MISTER GREEN!\"");
+    println!("* The man hands you $1000.00.");
   }
 
   bankroll_file.set_len(0);
