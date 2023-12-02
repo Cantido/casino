@@ -68,6 +68,24 @@ fn main() {
   println!("Dealer's hand: 🂠 {}", dealer_shown);
   println!("Your hand: {} ({})", hand_to_string(&your_hand), blackjack_sum(&your_hand));
 
+  let mut insurance_flag = false;
+
+  if matches!(dealer_shown.value, Value::Ace) {
+    println!("Insurance? [y/n]");
+    let mut insurance_input = String::new();
+    io::stdin().read_line(&mut insurance_input).unwrap();
+    match insurance_input.trim() {
+      "y" => {
+        println!("You make an additional {bet} insurance bet.");
+        insurance_flag = true;
+      }
+      _ => {
+        println!("You choose for forgo making an insurance bet.");
+        insurance_flag = false;
+      }
+    }
+  }
+
   loop {
     println!("Hit or stand? [h/s]:");
 
@@ -115,14 +133,21 @@ fn main() {
       println!("YOU LOSE! You lose {bet}. You now have {bankroll}");
     } else if your_hand.len() == 2 && player_sum == 21 {
       let payout_ratio = Decimal::new(15, 1);
-      let payout = (bet * payout_ratio).round(2, Round::HalfUp);
+      let payout = (bet.clone() * payout_ratio).round(2, Round::HalfUp);
       bankroll += payout.clone();
       println!("BLACKJACK! You receive {payout}. You now have {bankroll}");
     } else {
       bankroll += bet.clone();
       println!("YOU WIN! You receive {bet}. You now have {bankroll}");
     }
+
+    if dealer_hand.len() == 2 && dealer_sum == 21 && insurance_flag {
+      let insurance_payout = bet.clone() * 2i32;
+      bankroll += insurance_payout.clone();
+      println!("DEALER BLACKJACK! Your insurance bet pays out {insurance_payout}. You now have {bankroll}.");
+    }
   }
+
 
   if bankroll.is_zero() {
     bankroll += Money::from_major(1_000, iso::USD);
