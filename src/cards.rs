@@ -1,8 +1,9 @@
 use std::fmt;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Suit {
   Clubs,
   Diamonds,
@@ -11,7 +12,7 @@ pub enum Suit {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Value {
   Ace,
   Two,
@@ -28,7 +29,7 @@ pub enum Value {
   King,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Card {
   pub suit: Suit,
   pub value: Value,

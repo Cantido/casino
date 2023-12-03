@@ -13,7 +13,8 @@ struct Args {
 
 #[derive(Deserialize, Debug, Serialize)]
 struct CasinoState {
-  bankroll: u32
+  bankroll: u32,
+  shoe: Vec<Card>,
 }
 
 fn main() {
@@ -33,7 +34,7 @@ fn main() {
       },
       Err(_) => {
         fs::write(&state_path, "bankroll = 1000\n").expect("Couldn't initialize your bankroll file");
-        CasinoState{ bankroll: 1_000 }
+        CasinoState{ bankroll: 1_000, shoe: shoe(4) }
       }
     };
 
@@ -57,16 +58,14 @@ fn main() {
 
   println!("Betting {bet}");
 
-  let mut shoe = shoe(4);
-
   let mut dealer_hidden;
   let mut dealer_shown;
   let mut your_hand = vec![];
 
-  dealer_hidden = shoe.pop().unwrap();
-  your_hand.push(shoe.pop().unwrap());
-  dealer_shown = shoe.pop().unwrap();
-  your_hand.push(shoe.pop().unwrap());
+  dealer_hidden = state.shoe.pop().unwrap();
+  your_hand.push(state.shoe.pop().unwrap());
+  dealer_shown = state.shoe.pop().unwrap();
+  your_hand.push(state.shoe.pop().unwrap());
 
   println!("Dealer's hand: 🂠 {}", dealer_shown);
   println!("Your hand: {} ({})", hand_to_string(&your_hand), blackjack_sum(&your_hand));
@@ -97,7 +96,7 @@ fn main() {
     match hit_stand_input.trim() {
       "h" | "hit" => {
         println!("* The dealer deals you another card");
-        your_hand.push(shoe.pop().unwrap());
+        your_hand.push(state.shoe.pop().unwrap());
         let sum = blackjack_sum(&your_hand);
         println!("Your hand: {} ({})", hand_to_string(&your_hand), sum);
 
@@ -121,7 +120,7 @@ fn main() {
 
     while dealer_sum < 17 {
       println!("* The dealer deals themself another card");
-      dealer_hand.push(shoe.pop().unwrap());
+      dealer_hand.push(state.shoe.pop().unwrap());
       dealer_sum = blackjack_sum(&dealer_hand);
       println!("Dealer's hand: {} ({})", hand_to_string(&dealer_hand), dealer_sum);
     }
