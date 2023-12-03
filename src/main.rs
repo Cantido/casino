@@ -1,5 +1,4 @@
 use std::{fmt, fs, fs::OpenOptions, io, io::prelude::*, io::Read, io::SeekFrom, io::Write};
-use rusty_money::{Money, Round, iso};
 use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
@@ -25,25 +24,24 @@ fn main() {
 
   bankroll_file.read_to_string(&mut bankroll_buffer).expect("Couldn't read your bankroll file!");
 
-  let mut bankroll =
+  let mut bankroll: i32 =
     if bankroll_buffer.is_empty() {
-      bankroll_file.write_all(b"$1000.00\n");
-      Money::from_major(1_000, iso::USD)
+      bankroll_file.write_all(b"1000\n");
+      1_000
     } else {
-      let stramt = bankroll_buffer.trim().trim_start_matches('$');
-      Money::from_str(stramt, iso::USD).unwrap()
+      bankroll_buffer.trim().parse().unwrap()
     };
 
-  println!("Your money: {bankroll}");
-  let mut bet;
+  println!("Your money: ${bankroll}.00");
+  let mut bet: i32;
 
   loop {
     println!("Enter your bet: ");
     let mut bet_input = String::new();
     io::stdin().read_line(&mut bet_input).unwrap();
 
-    bet = Money::from_str(bet_input.trim().trim_start_matches('$'), iso::USD).unwrap().round(2, Round::HalfUp);
-    if bet.is_negative() || bet.is_zero() {
+    bet = bet_input.trim().parse().unwrap();
+    if bet <= 0 {
       println!("Try again, wiseguy")
     } else if bet > bankroll {
       println!("You don't have that much money! Try again.");
@@ -76,7 +74,7 @@ fn main() {
     io::stdin().read_line(&mut insurance_input).unwrap();
     match insurance_input.trim() {
       "y" => {
-        println!("You make an additional {bet} insurance bet.");
+        println!("You make an additional ${bet}.00 insurance bet.");
         insurance_flag = true;
       }
       _ => {
@@ -100,7 +98,7 @@ fn main() {
 
         if sum > 21 {
           bankroll -= bet.clone();
-          println!("BUST! You lose {bet}. You now have {bankroll}");
+          println!("BUST! You lose ${bet}.00. You now have ${bankroll}.00");
           break;
         }
       },
@@ -125,32 +123,31 @@ fn main() {
 
     if dealer_sum > 21 {
       bankroll += bet.clone();
-      println!("DEALER BUST! You receive {bet}. You now have {bankroll}");
+      println!("DEALER BUST! You receive ${bet}.00. You now have ${bankroll}.00");
     } else if dealer_sum == player_sum {
       println!("PUSH! Nobody wins.");
     } else if dealer_sum > player_sum {
       bankroll -= bet.clone();
-      println!("YOU LOSE! You lose {bet}. You now have {bankroll}");
+      println!("YOU LOSE! You lose ${bet}.00. You now have ${bankroll}.00");
     } else if your_hand.len() == 2 && player_sum == 21 {
-      let payout_ratio = Decimal::new(15, 1);
-      let payout = (bet.clone() * payout_ratio).round(2, Round::HalfUp);
+      let payout = (bet.clone() * 2 / 3);
       bankroll += payout.clone();
-      println!("BLACKJACK! You receive {payout}. You now have {bankroll}");
+      println!("BLACKJACK! You receive ${payout}.00. You now have ${bankroll}.00");
     } else {
       bankroll += bet.clone();
-      println!("YOU WIN! You receive {bet}. You now have {bankroll}");
+      println!("YOU WIN! You receive ${bet}. You now have ${bankroll}");
     }
 
     if dealer_hand.len() == 2 && dealer_sum == 21 && insurance_flag {
       let insurance_payout = bet.clone() * 2i32;
       bankroll += insurance_payout.clone();
-      println!("DEALER BLACKJACK! Your insurance bet pays out {insurance_payout}. You now have {bankroll}.");
+      println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}.00. You now have ${bankroll}.00.");
     }
   }
 
 
   if bankroll.is_zero() {
-    bankroll += Money::from_major(1_000, iso::USD);
+    bankroll += 1_000;
     println!("* Unfortunately, you've run out of money.");
     println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
     println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");

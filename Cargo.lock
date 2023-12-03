@@ -157,7 +157,6 @@ dependencies = [
  "directories",
  "rand",
  "rust_decimal",
- "rusty-money",
 ]
 
 [[package]]
@@ -526,26 +525,6 @@ dependencies = [
  "rkyv",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "rust_decimal_macros"
-version = "1.33.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e43721f4ef7060ebc2c3ede757733209564ca8207f47674181bcd425dd76945"
-dependencies = [
- "quote",
- "rust_decimal",
-]
-
-[[package]]
-name = "rusty-money"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b28f881005eac7ad8d46b6f075da5f322bd7f4f83a38720fc069694ddadd683"
-dependencies = [
- "rust_decimal",
- "rust_decimal_macros",
 ]
 
 [[package]]
