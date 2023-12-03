@@ -18,18 +18,17 @@ fn main() {
 
   fs::create_dir_all(data_dir).expect("Couldn't create data dir!");
 
-  let mut bankroll_file = OpenOptions::new().read(true).write(true).create(true).open(data_dir.join("bankroll")).expect("Couldn't open your bankroll file!");
-
-  let mut bankroll_buffer = String::new();
-
-  bankroll_file.read_to_string(&mut bankroll_buffer).expect("Couldn't read your bankroll file!");
+  let bankroll_path = data_dir.join("bankroll");
 
   let mut bankroll: i32 =
-    if bankroll_buffer.is_empty() {
-      bankroll_file.write_all(b"1000\n");
-      1_000
-    } else {
-      bankroll_buffer.trim().parse().unwrap()
+    match fs::read_to_string(&bankroll_path) {
+      Ok(bankroll_string) => {
+        bankroll_string.trim().parse().unwrap()
+      },
+      Err(_) => {
+        fs::write(&bankroll_path, "1000\n").expect("Couldn't initialize your bankroll file");
+        1_000
+      }
     };
 
   println!("Your money: ${bankroll}.00");
@@ -155,9 +154,7 @@ fn main() {
     println!("* The man hands you $1000.00.");
   }
 
-  bankroll_file.set_len(0);
-  bankroll_file.seek(SeekFrom::Start(0));
-  bankroll_file.write_all(bankroll.to_string().as_bytes());
+  fs::write(bankroll_path, bankroll.to_string().as_bytes());
 }
 
 fn blackjack_sum(hand: &Vec<Card>) -> u8 {
