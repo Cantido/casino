@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use inquire::{Confirm, Select, Text};
 use rust_decimal::prelude::*;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use directories::{ProjectDirs};
 use serde::{Deserialize, Serialize};
 use spinners::{Spinner, Spinners};
@@ -13,7 +13,14 @@ use casino::cards::{Card, Hand, Value, shoe};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+  #[command(subcommand)]
+  command: Option<Commands>
+}
 
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+  Stats
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -23,6 +30,7 @@ struct Config {
   #[serde(with = "rust_decimal::serde::str")]
   mister_greens_gift: Decimal,
   save_path: PathBuf,
+  stats_path: PathBuf,
 }
 
 impl Default for Config {
@@ -30,12 +38,14 @@ impl Default for Config {
     let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
     let data_dir = project_dirs.data_dir();
     let save_path = data_dir.join("state.toml");
+    let stats_path = data_dir.join("stats.toml");
 
     Self {
       shoe_count: 4,
       shuffle_at_penetration: 0.75,
       mister_greens_gift: Decimal::new(1_000, 0),
       save_path: save_path,
+      stats_path: stats_path,
     }
   }
 }
@@ -49,7 +59,15 @@ impl Config {
 
     match fs::read_to_string(&config_path) {
       Ok(config_string) => {
-        toml::from_str(&config_string).unwrap()
+        match toml::from_str(&config_string) {
+          Ok(config) => config,
+          Err(_) => {
+            let _ = fs::remove_file(&config_path);
+            let config = Self::default();
+            fs::write(config_path, toml::to_string(&config).unwrap()).unwrap();
+            config
+          }
+        }
       },
       Err(_) => {
         let config = Self::default();
@@ -60,18 +78,68 @@ impl Config {
   }
 }
 
+#[derive(Clone, Default, Deserialize, Serialize)]
+struct Statistics {
+  hands_won: u32,
+  hands_lost: u32,
+  hands_push: u32,
+  #[serde(with = "rust_decimal::serde::str")]
+  money_won: Decimal,
+  #[serde(with = "rust_decimal::serde::str")]
+  money_lost: Decimal,
+  #[serde(with = "rust_decimal::serde::str")]
+  biggest_win: Decimal,
+  #[serde(with = "rust_decimal::serde::str")]
+  biggest_loss: Decimal,
+  #[serde(with = "rust_decimal::serde::str")]
+  biggest_bankroll: Decimal,
+  times_bankrupted: u32,
+}
+
+impl Statistics {
+  fn record_win(&mut self, amount: Decimal) {
+    self.hands_won += 1;
+    self.money_won += amount;
+    if amount > self.biggest_win {
+      self.biggest_win = amount;
+    }
+  }
+
+  fn record_loss(&mut self, amount: Decimal) {
+    self.hands_lost += 1;
+    self.money_lost += amount;
+    if amount > self.biggest_loss {
+      self.biggest_loss = amount;
+    }
+  }
+
+  fn record_push(&mut self) {
+    self.hands_push += 1;
+  }
+
+  fn update_bankroll(&mut self, amount: Decimal) {
+    if amount > self.biggest_bankroll {
+      self.biggest_bankroll = amount;
+    } else if amount.is_zero() {
+      self.times_bankrupted += 1;
+    }
+  }
+}
+
 struct Casino {
   config: Config,
   bankroll: Decimal,
   shoe: Vec<Card>,
   bet: Decimal,
   insurance_flag: bool,
+  stats: Statistics,
 }
 
 impl Casino {
-  fn new(config: Config) -> Self {
+  fn new(config: Config, stats: Statistics) -> Self {
     Self {
       config: config.clone(),
+      stats: stats.clone(),
       bankroll: config.mister_greens_gift,
       shoe: shoe(config.shoe_count),
       bet: Decimal::ZERO,
@@ -82,11 +150,21 @@ impl Casino {
   fn from_filesystem() -> Self {
     let config = Config::init_get();
 
+    let stats: Statistics = match fs::read_to_string(&config.stats_path) {
+      Ok(stats_string) => {
+        toml::from_str(&stats_string).unwrap()
+      },
+      Err(_) => {
+        Statistics::default()
+      }
+    };
+
     match fs::read_to_string(&config.save_path) {
       Ok(state_string) => {
         let state: CasinoState = toml::from_str(&state_string).unwrap();
         Self {
           config: config,
+          stats: stats,
           bankroll: state.bankroll,
           shoe: state.shoe.clone(),
           bet: Decimal::ZERO,
@@ -94,7 +172,7 @@ impl Casino {
         }
       },
       Err(_) => {
-        Self::new(config)
+        Self::new(config, stats)
       }
     }
   }
@@ -116,6 +194,7 @@ impl Casino {
 
   fn add_bankroll(&mut self, amount: Decimal) {
     self.bankroll += amount;
+    self.stats.update_bankroll(self.bankroll);
   }
 
   fn can_initial_bet(&self, amount: Decimal) -> bool {
@@ -135,19 +214,30 @@ impl Casino {
   }
 
   fn lose_bet(&mut self) {
+    self.stats.record_loss(self.bet);
     self.bankroll -= self.bet;
+    self.stats.update_bankroll(self.bankroll);
   }
 
   fn win_bet(&mut self) {
+    self.stats.record_win(self.bet);
     self.bankroll += self.bet;
+    self.stats.update_bankroll(self.bankroll);
   }
 
   fn win_bet_blackjack(&mut self) {
+    self.stats.record_win(self.blackjack_payout());
     self.bankroll += self.blackjack_payout();
+    self.stats.update_bankroll(self.bankroll);
   }
 
   fn win_insurance(&mut self) {
     self.bankroll += self.insurance_payout();
+    self.stats.update_bankroll(self.bankroll);
+  }
+
+  fn push_bet(&mut self) {
+    self.stats.record_push();
   }
 
   fn blackjack_payout(&self) -> Decimal {
@@ -163,6 +253,10 @@ impl Casino {
     let save_dir = self.config.save_path.parent().unwrap();
     fs::create_dir_all(save_dir).expect("Couldn't create save directory!");
     fs::write(&self.config.save_path, toml::to_string(&state).unwrap()).unwrap();
+
+    let stats_dir = self.config.stats_path.parent().unwrap();
+    fs::create_dir_all(stats_dir).expect("Couldn't create stats directory!");
+    fs::write(&self.config.stats_path, toml::to_string(&self.stats).unwrap()).unwrap();
   }
 }
 
@@ -174,8 +268,30 @@ struct CasinoState {
 }
 
 fn main() {
-  let _args = Args::parse();
+  let args = Args::parse();
 
+  match &args.command {
+    Some(Commands::Stats) => {
+      let state = Casino::from_filesystem();
+      let stats = state.stats;
+
+      println!("Hands won...............{:.>15}", stats.hands_won);
+      println!("Hands lost..............{:.>15}", stats.hands_lost);
+      println!("Hands tied..............{:.>15}", stats.hands_push);
+      println!("Times hit bankruptcy....{:.>15}", stats.times_bankrupted);
+      println!("Total money won.........{:.>15.2}", stats.money_won);
+      println!("Total money lost........{:.>15.2}", stats.money_lost);
+      println!("Biggest win.............{:.>15.2}", stats.biggest_win);
+      println!("Biggest loss............{:.>15.2}", stats.biggest_loss);
+      println!("Most money in the bank..{:.>15.2}", stats.biggest_bankroll);
+    }
+    None => {
+      play_blackjack();
+    }
+  }
+}
+
+fn play_blackjack() {
   let mut state = Casino::from_filesystem();
 
   println!("Your money: ${}", state.bankroll);
@@ -280,6 +396,7 @@ fn main() {
       state.win_bet();
       println!("DEALER BUST! You receive ${}. You now have ${}", state.bet, state.bankroll);
     } else if dealer_hand.blackjack_sum() == player_hand.blackjack_sum() {
+      state.push_bet();
       println!("PUSH! Nobody wins.");
     } else if dealer_hand.blackjack_sum() > player_hand.blackjack_sum() {
       state.lose_bet();
