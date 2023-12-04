@@ -4,7 +4,7 @@ use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
 use serde::{Deserialize, Serialize};
-use casino::cards::{Card, Value, shoe};
+use casino::cards::{Card, Hand, Value, shoe};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -194,19 +194,19 @@ fn main() {
 
   println!("Betting ${}", state.bet);
 
-  let dealer_hidden;
-  let dealer_shown;
-  let mut your_hand = vec![];
+  let mut dealer_hand = Hand::new();
+  dealer_hand.hidden_count = 1;
+  let mut player_hand = Hand::new();
 
-  dealer_hidden = state.draw_card();
-  your_hand.push(state.draw_card());
-  dealer_shown = state.draw_card();
-  your_hand.push(state.draw_card());
+  dealer_hand.push(state.draw_card());
+  player_hand.push(state.draw_card());
+  dealer_hand.push(state.draw_card());
+  player_hand.push(state.draw_card());
 
-  println!("Dealer's hand: 🂠 {}", dealer_shown);
-  println!("Your hand: {} ({})", hand_to_string(&your_hand), blackjack_sum(&your_hand));
+  println!("Dealer's hand: {}", dealer_hand);
+  println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
 
-  if matches!(dealer_shown.value, Value::Ace) && state.can_bet_insurance() {
+  if matches!(dealer_hand.face_card().value, Value::Ace) && state.can_bet_insurance() {
     println!("Insurance? [y/n]");
     let mut insurance_input = String::new();
     io::stdin().read_line(&mut insurance_input).unwrap();
@@ -229,11 +229,10 @@ fn main() {
     match hit_stand_input.trim() {
       "h" | "hit" => {
         println!("* The dealer deals you another card");
-        your_hand.push(state.draw_card());
-        let sum = blackjack_sum(&your_hand);
-        println!("Your hand: {} ({})", hand_to_string(&your_hand), sum);
+        player_hand.push(state.draw_card());
+        println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
 
-        if sum > 21 {
+        if player_hand.blackjack_sum() > 21 {
           state.lose_bet();
           println!("BUST! You lose ${}. You now have ${}", state.bet, state.bankroll);
           break;
@@ -244,29 +243,25 @@ fn main() {
     }
   }
 
-  let player_sum = blackjack_sum(&your_hand);
+  if player_hand.blackjack_sum() <= 21 {
+    dealer_hand.hidden_count = 0;
+    println!("Dealer's hand: {} ({})", dealer_hand, dealer_hand.blackjack_sum());
 
-  if player_sum <= 21 {
-    let mut dealer_hand = vec![dealer_hidden, dealer_shown];
-    let mut dealer_sum = blackjack_sum(&dealer_hand);
-    println!("Dealer's hand: {} ({})", hand_to_string(&dealer_hand), dealer_sum);
-
-    while dealer_sum < 17 {
+    while dealer_hand.blackjack_sum() < 17 {
       println!("* The dealer deals themself another card");
       dealer_hand.push(state.draw_card());
-      dealer_sum = blackjack_sum(&dealer_hand);
-      println!("Dealer's hand: {} ({})", hand_to_string(&dealer_hand), dealer_sum);
+      println!("Dealer's hand: {} ({})", dealer_hand, dealer_hand.blackjack_sum());
     }
 
-    if dealer_sum > 21 {
+    if dealer_hand.blackjack_sum() > 21 {
       state.win_bet();
       println!("DEALER BUST! You receive ${}. You now have ${}", state.bet, state.bankroll);
-    } else if dealer_sum == player_sum {
+    } else if dealer_hand.blackjack_sum() == player_hand.blackjack_sum() {
       println!("PUSH! Nobody wins.");
-    } else if dealer_sum > player_sum {
+    } else if dealer_hand.blackjack_sum() > player_hand.blackjack_sum() {
       state.lose_bet();
       println!("YOU LOSE! You lose ${}. You now have ${}", state.bet, state.bankroll);
-    } else if your_hand.len() == 2 && player_sum == 21 {
+    } else if player_hand.is_natural_blackjack() {
       state.win_bet_blackjack();
       let payout = state.blackjack_payout();
       println!("BLACKJACK! You receive ${payout}. You now have ${}", state.bankroll);
@@ -275,7 +270,7 @@ fn main() {
       println!("YOU WIN! You receive ${}. You now have ${}", state.bet, state.bankroll);
     }
 
-    if dealer_hand.len() == 2 && dealer_sum == 21 && state.insurance_flag {
+    if dealer_hand.is_natural_blackjack() && state.insurance_flag {
       let insurance_payout = state.insurance_payout();
       state.win_insurance();
       println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}. You now have ${}.", state.bankroll);
@@ -295,27 +290,4 @@ fn main() {
   state.save();
 }
 
-fn blackjack_sum(hand: &Vec<Card>) -> u8 {
-  let mut sum = 0;
-  for card in hand.iter() {
-    sum += card.blackjack_value();
-  }
 
-  let has_ace = hand.iter().any(|c| matches!(&c.value, Value::Ace));
-
-  if has_ace && sum <= 11 {
-    sum += 10;
-  }
-
-  return sum
-}
-
-fn hand_to_string(hand: &Vec<Card>) -> String {
-  let mut hand_str: String = "".to_owned();
-
-  for card in hand.iter() {
-    hand_str.push_str(&format!("{}", card));
-  }
-
-  return hand_str
-}

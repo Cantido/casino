@@ -114,6 +114,61 @@ impl fmt::Display for Card {
   }
 }
 
+#[derive(Default)]
+pub struct Hand {
+  pub cards: Vec<Card>,
+  pub hidden_count: usize,
+}
+
+impl Hand {
+  pub fn new() -> Self {
+    Hand::default()
+  }
+
+  pub fn push(&mut self, card: Card) {
+    self.cards.push(card);
+  }
+
+  pub fn face_card(&self) -> &Card {
+    &self.cards[1]
+  }
+
+  pub fn is_natural_blackjack(&self) -> bool {
+    self.cards.len() == 2 && self.blackjack_sum() == 21
+  }
+
+  pub fn blackjack_sum(&self) -> u8 {
+    let mut sum = 0;
+    for card in self.cards.iter() {
+      sum += card.blackjack_value();
+    }
+
+    let has_ace = self.cards.iter().any(|c| matches!(&c.value, Value::Ace));
+
+    if has_ace && sum <= 11 {
+      sum += 10;
+    }
+
+    return sum
+  }
+}
+
+impl fmt::Display for Hand {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let mut hand_str: String = "".to_owned();
+
+    for (i, card) in self.cards.iter().enumerate() {
+      if i < self.hidden_count {
+        hand_str.push_str("🂠 ");
+      } else {
+        hand_str.push_str(&card.to_string());
+      }
+    }
+
+    write!(f, "{}", hand_str)
+  }
+}
+
 pub fn deck() -> Vec<Card> {
   let suits = [
     Suit::Clubs,
