@@ -17,6 +17,26 @@ struct CasinoState {
   shoe: Vec<Card>,
 }
 
+impl CasinoState {
+  fn new() -> Self {
+    CasinoState {
+      bankroll: 1_000,
+      shoe: shoe(4),
+    }
+  }
+
+  fn draw_card(&mut self) -> Card {
+    let card = self.shoe.pop().unwrap();
+
+    // assuming 4 decks in the shoe
+    if self.shoe.len() < 52 {
+      self.shoe = shoe(4);
+    }
+
+    return card
+  }
+}
+
 fn main() {
   let args = Args::parse();
 
@@ -33,8 +53,7 @@ fn main() {
         toml::from_str(&state_string).unwrap()
       },
       Err(_) => {
-        fs::write(&state_path, "bankroll = 1000\n").expect("Couldn't initialize your bankroll file");
-        CasinoState{ bankroll: 1_000, shoe: shoe(4) }
+        CasinoState::new()
       }
     };
 
@@ -62,17 +81,17 @@ fn main() {
   let mut dealer_shown;
   let mut your_hand = vec![];
 
-  dealer_hidden = state.shoe.pop().unwrap();
-  your_hand.push(state.shoe.pop().unwrap());
-  dealer_shown = state.shoe.pop().unwrap();
-  your_hand.push(state.shoe.pop().unwrap());
+  dealer_hidden = state.draw_card();
+  your_hand.push(state.draw_card());
+  dealer_shown = state.draw_card();
+  your_hand.push(state.draw_card());
 
   println!("Dealer's hand: 🂠 {}", dealer_shown);
   println!("Your hand: {} ({})", hand_to_string(&your_hand), blackjack_sum(&your_hand));
 
   let mut insurance_flag = false;
 
-  if matches!(dealer_shown.value, Value::Ace) {
+  if matches!(dealer_shown.value, Value::Ace) && state.bankroll >= (bet * 2) {
     println!("Insurance? [y/n]");
     let mut insurance_input = String::new();
     io::stdin().read_line(&mut insurance_input).unwrap();
@@ -96,7 +115,7 @@ fn main() {
     match hit_stand_input.trim() {
       "h" | "hit" => {
         println!("* The dealer deals you another card");
-        your_hand.push(state.shoe.pop().unwrap());
+        your_hand.push(state.draw_card());
         let sum = blackjack_sum(&your_hand);
         println!("Your hand: {} ({})", hand_to_string(&your_hand), sum);
 
@@ -120,7 +139,7 @@ fn main() {
 
     while dealer_sum < 17 {
       println!("* The dealer deals themself another card");
-      dealer_hand.push(state.shoe.pop().unwrap());
+      dealer_hand.push(state.draw_card());
       dealer_sum = blackjack_sum(&dealer_hand);
       println!("Dealer's hand: {} ({})", hand_to_string(&dealer_hand), dealer_sum);
     }
