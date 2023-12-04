@@ -37,10 +37,6 @@ pub struct Card {
 }
 
 impl Card {
-  pub fn hide(&self) -> HiddenCard {
-    return HiddenCard(self.clone())
-  }
-
   pub fn blackjack_value(&self) -> u8 {
     return match &self.value {
       Value::Ace => 1,
@@ -115,14 +111,6 @@ impl fmt::Display for Card {
     };
 
     write!(f, "{} ", symbol)
-  }
-}
-
-pub struct HiddenCard(Card);
-
-impl HiddenCard {
-  pub fn reveal(&self) -> Card {
-    return self.0.clone();
   }
 }
 
