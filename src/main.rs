@@ -20,7 +20,9 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-  Stats
+  Blackjack,
+  Stats,
+  Shuffle,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -186,10 +188,14 @@ impl Casino {
     let low_card_threshold: usize = (starting_shoe_size * threshold_fraction) as usize;
 
     if self.shoe.len() < low_card_threshold {
-      self.shoe = shoe(self.config.shoe_count);
+      self.shuffle_shoe();
     }
 
     return card
+  }
+
+  fn shuffle_shoe(&mut self) {
+    self.shoe = shoe(self.config.shoe_count);
   }
 
   fn add_bankroll(&mut self, amount: Decimal) {
@@ -284,9 +290,25 @@ fn main() {
       println!("Biggest win.............{:.>15.2}", stats.biggest_win);
       println!("Biggest loss............{:.>15.2}", stats.biggest_loss);
       println!("Most money in the bank..{:.>15.2}", stats.biggest_bankroll);
-    }
-    None => {
+    },
+    Some(Commands::Blackjack) => {
       play_blackjack();
+    },
+    Some(Commands::Shuffle) => {
+      let mut state = Casino::from_filesystem();
+      state.shuffle_shoe();
+      state.save();
+    },
+    None => {
+      let options = vec!["Blackjack"];
+
+      let ans = Select::new("What would you like to play?", options).prompt();
+
+      match ans {
+        Ok("Blackjack") => play_blackjack(),
+        Ok(_) => panic!("Unknown option"),
+        Err(_) => panic!("Error fetching your choice"),
+      }
     }
   }
 }
