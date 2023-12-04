@@ -14,23 +14,33 @@ struct Args {
 
 #[derive(Deserialize, Debug, Serialize)]
 struct CasinoState {
-  bankroll: u32,
+  #[serde(with = "rust_decimal::serde::str")]
+  bankroll: Decimal,
   shoe: Vec<Card>,
 }
 
 struct Casino {
-  bankroll: u32,
+  bankroll: Decimal,
   shoe: Vec<Card>,
-  bet: u32,
+  bet: Decimal,
   insurance_flag: bool,
 }
 
 impl Casino {
   fn new() -> Self {
-    Casino {
-      bankroll: 1_000,
+    Self {
+      bankroll: Decimal::new(100000, 2),
       shoe: shoe(4),
-      bet: 0,
+      bet: Decimal::ZERO,
+      insurance_flag: false,
+    }
+  }
+
+  fn from_state(state: CasinoState) -> Self {
+    Self {
+      bankroll: state.bankroll,
+      shoe: state.shoe.clone(),
+      bet: Decimal::ZERO,
       insurance_flag: false,
     }
   }
@@ -39,12 +49,7 @@ impl Casino {
     match fs::read_to_string(&path) {
       Ok(state_string) => {
         let state: CasinoState = toml::from_str(&state_string).unwrap();
-        Self {
-          bankroll: state.bankroll,
-          shoe: state.shoe.clone(),
-          bet: 0,
-          insurance_flag: false,
-        }
+        Self::from_state(state)
       },
       Err(_) => {
         Self::new()
@@ -63,20 +68,20 @@ impl Casino {
     return card
   }
 
-  fn add_bankroll(&mut self, amount: u32) {
+  fn add_bankroll(&mut self, amount: Decimal) {
     self.bankroll += amount;
   }
 
-  fn can_initial_bet(&self, amount: u32) -> bool {
-    amount > 0 && amount <= self.bankroll
+  fn can_initial_bet(&self, amount: Decimal) -> bool {
+    amount.is_positive() && !amount.is_zero() && amount <= self.bankroll
   }
 
-  fn set_initial_bet(&mut self, amount: u32) {
+  fn set_initial_bet(&mut self, amount: Decimal) {
     self.bet = amount;
   }
 
   fn can_bet_insurance(&self) -> bool {
-    self.bet * 2 <= self.bankroll
+    self.bet * Decimal::new(2, 0) <= self.bankroll
   }
 
   fn place_insurance_bet(&mut self) {
@@ -99,12 +104,12 @@ impl Casino {
     self.bankroll += self.insurance_payout();
   }
 
-  fn blackjack_payout(&self) -> u32 {
-    self.bet * 3 / 2
+  fn blackjack_payout(&self) -> Decimal {
+    self.bet * Decimal::new(15, 1).round_dp(2)
   }
 
-  fn insurance_payout(&self) -> u32 {
-    self.bet * 2
+  fn insurance_payout(&self) -> Decimal {
+    self.bet * Decimal::new(2, 0)
   }
 
   fn persist(&self, path: &Path) {
@@ -125,14 +130,15 @@ fn main() {
 
   let mut state = Casino::from_path(&state_path);
 
-  println!("Your money: ${}.00", state.bankroll);
+  println!("Your money: ${}", state.bankroll);
 
   loop {
     println!("Enter your bet: ");
     let mut bet_input = String::new();
     io::stdin().read_line(&mut bet_input).unwrap();
 
-    let bet = bet_input.trim().parse().unwrap();
+    let bet = bet_input.trim().parse::<Decimal>().unwrap().round_dp(2);
+
 
     if state.can_initial_bet(bet) {
       state.set_initial_bet(bet);
@@ -142,7 +148,7 @@ fn main() {
     }
   }
 
-  println!("Betting ${}.00", state.bet);
+  println!("Betting ${}", state.bet);
 
   let mut dealer_hidden;
   let mut dealer_shown;
@@ -165,7 +171,7 @@ fn main() {
     match insurance_input.trim() {
       "y" => {
         state.place_insurance_bet();
-        println!("You make an additional ${}.00 insurance bet.", state.bet);
+        println!("You make an additional ${} insurance bet.", state.bet);
       }
       _ => {
         println!("You choose for forgo making an insurance bet.");
@@ -187,7 +193,7 @@ fn main() {
 
         if sum > 21 {
           state.lose_bet();
-          println!("BUST! You lose ${}.00. You now have ${}.00", state.bet, state.bankroll);
+          println!("BUST! You lose ${}. You now have ${}", state.bet, state.bankroll);
           break;
         }
       },
@@ -212,31 +218,31 @@ fn main() {
 
     if dealer_sum > 21 {
       state.win_bet();
-      println!("DEALER BUST! You receive ${}.00. You now have ${}.00", state.bet, state.bankroll);
+      println!("DEALER BUST! You receive ${}. You now have ${}", state.bet, state.bankroll);
     } else if dealer_sum == player_sum {
       println!("PUSH! Nobody wins.");
     } else if dealer_sum > player_sum {
       state.lose_bet();
-      println!("YOU LOSE! You lose ${}.00. You now have ${}.00", state.bet, state.bankroll);
+      println!("YOU LOSE! You lose ${}. You now have ${}", state.bet, state.bankroll);
     } else if your_hand.len() == 2 && player_sum == 21 {
       state.win_bet_blackjack();
       let payout = state.blackjack_payout();
-      println!("BLACKJACK! You receive ${payout}.00. You now have ${}.00", state.bankroll);
+      println!("BLACKJACK! You receive ${payout}. You now have ${}", state.bankroll);
     } else {
       state.win_bet();
-      println!("YOU WIN! You receive ${}. You now have ${}.00", state.bet, state.bankroll);
+      println!("YOU WIN! You receive ${}. You now have ${}", state.bet, state.bankroll);
     }
 
     if dealer_hand.len() == 2 && dealer_sum == 21 && insurance_flag {
       let insurance_payout = state.insurance_payout();
       state.win_insurance();
-      println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}.00. You now have ${}.00.", state.bankroll);
+      println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}. You now have ${}.", state.bankroll);
     }
   }
 
 
   if state.bankroll.is_zero() {
-    state.add_bankroll(1_000);
+    state.add_bankroll(Decimal::new(1000, 0));
     println!("* Unfortunately, you've run out of money.");
     println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
     println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
