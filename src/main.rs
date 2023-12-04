@@ -1,4 +1,5 @@
 use std::{fmt, fs, fs::OpenOptions, io, io::prelude::*, io::Read, io::SeekFrom, io::Write};
+use std::path::Path;
 use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
@@ -17,11 +18,37 @@ struct CasinoState {
   shoe: Vec<Card>,
 }
 
-impl CasinoState {
+struct Casino {
+  bankroll: u32,
+  shoe: Vec<Card>,
+  bet: u32,
+  insurance_flag: bool,
+}
+
+impl Casino {
   fn new() -> Self {
-    CasinoState {
+    Casino {
       bankroll: 1_000,
       shoe: shoe(4),
+      bet: 0,
+      insurance_flag: false,
+    }
+  }
+
+  fn from_path(path: &Path) -> Self {
+    match fs::read_to_string(&path) {
+      Ok(state_string) => {
+        let state: CasinoState = toml::from_str(&state_string).unwrap();
+        Self {
+          bankroll: state.bankroll,
+          shoe: state.shoe.clone(),
+          bet: 0,
+          insurance_flag: false,
+        }
+      },
+      Err(_) => {
+        Self::new()
+      }
     }
   }
 
@@ -35,6 +62,55 @@ impl CasinoState {
 
     return card
   }
+
+  fn add_bankroll(&mut self, amount: u32) {
+    self.bankroll += amount;
+  }
+
+  fn can_initial_bet(&self, amount: u32) -> bool {
+    amount > 0 && amount <= self.bankroll
+  }
+
+  fn set_initial_bet(&mut self, amount: u32) {
+    self.bet = amount;
+  }
+
+  fn can_bet_insurance(&self) -> bool {
+    self.bet * 2 <= self.bankroll
+  }
+
+  fn place_insurance_bet(&mut self) {
+    self.insurance_flag = true;
+  }
+
+  fn lose_bet(&mut self) {
+    self.bankroll -= self.bet;
+  }
+
+  fn win_bet(&mut self) {
+    self.bankroll += self.bet;
+  }
+
+  fn win_bet_blackjack(&mut self) {
+    self.bankroll += self.blackjack_payout();
+  }
+
+  fn win_insurance(&mut self) {
+    self.bankroll += self.insurance_payout();
+  }
+
+  fn blackjack_payout(&self) -> u32 {
+    self.bet * 3 / 2
+  }
+
+  fn insurance_payout(&self) -> u32 {
+    self.bet * 2
+  }
+
+  fn persist(&self, path: &Path) {
+    let state = CasinoState { bankroll: self.bankroll, shoe: self.shoe.clone() };
+    fs::write(path, toml::to_string(&state).unwrap());
+  }
 }
 
 fn main() {
@@ -47,35 +123,26 @@ fn main() {
 
   let state_path = data_dir.join("state");
 
-  let mut state: CasinoState =
-    match fs::read_to_string(&state_path) {
-      Ok(state_string) => {
-        toml::from_str(&state_string).unwrap()
-      },
-      Err(_) => {
-        CasinoState::new()
-      }
-    };
+  let mut state = Casino::from_path(&state_path);
 
   println!("Your money: ${}.00", state.bankroll);
-  let mut bet: u32;
 
   loop {
     println!("Enter your bet: ");
     let mut bet_input = String::new();
     io::stdin().read_line(&mut bet_input).unwrap();
 
-    bet = bet_input.trim().parse().unwrap();
-    if bet <= 0 {
-      println!("Try again, wiseguy")
-    } else if bet > state.bankroll {
-      println!("You don't have that much money! Try again.");
-    } else {
+    let bet = bet_input.trim().parse().unwrap();
+
+    if state.can_initial_bet(bet) {
+      state.set_initial_bet(bet);
       break;
+    } else {
+      println!("You can't bet that amount, try again.");
     }
   }
 
-  println!("Betting {bet}");
+  println!("Betting ${}.00", state.bet);
 
   let mut dealer_hidden;
   let mut dealer_shown;
@@ -91,18 +158,17 @@ fn main() {
 
   let mut insurance_flag = false;
 
-  if matches!(dealer_shown.value, Value::Ace) && state.bankroll >= (bet * 2) {
+  if matches!(dealer_shown.value, Value::Ace) && state.can_bet_insurance() {
     println!("Insurance? [y/n]");
     let mut insurance_input = String::new();
     io::stdin().read_line(&mut insurance_input).unwrap();
     match insurance_input.trim() {
       "y" => {
-        println!("You make an additional ${bet}.00 insurance bet.");
-        insurance_flag = true;
+        state.place_insurance_bet();
+        println!("You make an additional ${}.00 insurance bet.", state.bet);
       }
       _ => {
         println!("You choose for forgo making an insurance bet.");
-        insurance_flag = false;
       }
     }
   }
@@ -120,8 +186,8 @@ fn main() {
         println!("Your hand: {} ({})", hand_to_string(&your_hand), sum);
 
         if sum > 21 {
-          state.bankroll -= bet.clone();
-          println!("BUST! You lose ${bet}.00. You now have ${}.00", state.bankroll);
+          state.lose_bet();
+          println!("BUST! You lose ${}.00. You now have ${}.00", state.bet, state.bankroll);
           break;
         }
       },
@@ -145,32 +211,32 @@ fn main() {
     }
 
     if dealer_sum > 21 {
-      state.bankroll += bet.clone();
-      println!("DEALER BUST! You receive ${bet}.00. You now have ${}.00", state.bankroll);
+      state.win_bet();
+      println!("DEALER BUST! You receive ${}.00. You now have ${}.00", state.bet, state.bankroll);
     } else if dealer_sum == player_sum {
       println!("PUSH! Nobody wins.");
     } else if dealer_sum > player_sum {
-      state.bankroll -= bet.clone();
-      println!("YOU LOSE! You lose ${bet}.00. You now have ${}.00", state.bankroll);
+      state.lose_bet();
+      println!("YOU LOSE! You lose ${}.00. You now have ${}.00", state.bet, state.bankroll);
     } else if your_hand.len() == 2 && player_sum == 21 {
-      let payout = bet * 2 / 3;
-      state.bankroll += payout.clone();
+      state.win_bet_blackjack();
+      let payout = state.blackjack_payout();
       println!("BLACKJACK! You receive ${payout}.00. You now have ${}.00", state.bankroll);
     } else {
-      state.bankroll += bet.clone();
-      println!("YOU WIN! You receive ${bet}. You now have ${}.00", state.bankroll);
+      state.win_bet();
+      println!("YOU WIN! You receive ${}. You now have ${}.00", state.bet, state.bankroll);
     }
 
     if dealer_hand.len() == 2 && dealer_sum == 21 && insurance_flag {
-      let insurance_payout = bet * 2;
-      state.bankroll += insurance_payout.clone();
+      let insurance_payout = state.insurance_payout();
+      state.win_insurance();
       println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}.00. You now have ${}.00.", state.bankroll);
     }
   }
 
 
   if state.bankroll.is_zero() {
-    state.bankroll += 1_000;
+    state.add_bankroll(1_000);
     println!("* Unfortunately, you've run out of money.");
     println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
     println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
@@ -178,7 +244,7 @@ fn main() {
     println!("* The man hands you $1000.00.");
   }
 
-  fs::write(state_path, toml::to_string(&state).unwrap());
+  state.persist(&state_path);
 }
 
 fn blackjack_sum(hand: &Vec<Card>) -> u8 {
