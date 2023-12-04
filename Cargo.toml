@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.10", features = ["derive"] }
 directories = "5.0.1"
+inquire = "0.6.2"
 rand = "0.8.5"
 rust_decimal = { version = "1.33.1", features = ["serde-with-str"] }
 serde = { version = "1.0.193", features = ["derive"] }

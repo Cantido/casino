@@ -1,5 +1,6 @@
-use std::{fs, io};
+use std::fs;
 use std::path::PathBuf;
+use inquire::{Confirm, Select, Text};
 use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
@@ -77,6 +78,7 @@ impl Casino {
 
   fn from_filesystem() -> Self {
     let config = Config::init_get();
+    println!("Reading state from {:?}", &config.save_path);
 
     match fs::read_to_string(&config.save_path) {
       Ok(state_string) => {
@@ -177,18 +179,19 @@ fn main() {
   println!("Your money: ${}", state.bankroll);
 
   loop {
-    println!("Enter your bet: ");
-    let mut bet_input = String::new();
-    io::stdin().read_line(&mut bet_input).unwrap();
+    let bet_result = Text::new("How much will you bet?").prompt();
 
-    let bet = bet_input.trim().parse::<Decimal>().unwrap().round_dp(2);
-
-
-    if state.can_initial_bet(bet) {
-      state.set_initial_bet(bet);
-      break;
-    } else {
-      println!("You can't bet that amount, try again.");
+    match bet_result {
+      Ok(bet_text) => {
+        let bet = bet_text.trim().parse::<Decimal>().unwrap().round_dp(2);
+        if state.can_initial_bet(bet) {
+          state.set_initial_bet(bet);
+          break;
+        } else {
+          println!("You can't bet that amount, try again.");
+        }
+      },
+      Err(_) => panic!("Error getting your answer."),
     }
   }
 
@@ -207,27 +210,25 @@ fn main() {
   println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
 
   if matches!(dealer_hand.face_card().value, Value::Ace) && state.can_bet_insurance() {
-    println!("Insurance? [y/n]");
-    let mut insurance_input = String::new();
-    io::stdin().read_line(&mut insurance_input).unwrap();
-    match insurance_input.trim() {
-      "y" => {
+    let ans = Confirm::new("Insurance?").with_default(false).prompt();
+
+    match ans {
+      Ok(true) => {
         state.place_insurance_bet();
         println!("You make an additional ${} insurance bet.", state.bet);
-      }
-      _ => {
-        println!("You choose for forgo making an insurance bet.");
-      }
+      },
+      Ok(false) => println!("You choose for forgo making an insurance bet."),
+      Err(_) => panic!("Error getting your answer"),
     }
   }
 
   loop {
-    println!("Hit or stand? [h/s]:");
+    let options = vec!["Hit", "Stand"];
 
-    let mut hit_stand_input = String::new();
-    io::stdin().read_line(&mut hit_stand_input).unwrap();
-    match hit_stand_input.trim() {
-      "h" | "hit" => {
+    let ans = Select::new("Hit or stand?", options).prompt();
+
+    match ans {
+      Ok("Hit") => {
         println!("* The dealer deals you another card");
         player_hand.push(state.draw_card());
         println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
@@ -238,8 +239,9 @@ fn main() {
           break;
         }
       },
-      "s" | "stand" => break,
-      _ => println!("Uhh, what?"),
+      Ok("Stand") => break,
+      Ok(_) => panic!("Unknown answer received"),
+      Err(_) => panic!("Error getting your answer."),
     }
   }
 
