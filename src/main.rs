@@ -284,12 +284,12 @@ fn main() {
 
 
   if state.bankroll.is_zero() {
-    state.add_bankroll(Decimal::new(1000, 0));
+    state.add_bankroll(state.config.mister_greens_gift);
     println!("* Unfortunately, you've run out of money.");
     println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
     println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
     println!("* \"Oh, and always remember the name: MISTER GREEN!\"");
-    println!("* The man hands you $1000.00.");
+    println!("* The man hands you ${}.", state.config.mister_greens_gift);
   }
 
   state.save();
