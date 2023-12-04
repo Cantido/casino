@@ -169,7 +169,7 @@ pub fn shoe(deck_count: u8) -> Vec<Card> {
 
   let mut shoe = vec![];
 
-  for i in 1..deck_count {
+  for _i in 1..deck_count {
     let mut next_deck = deck.clone();
     shoe.append(&mut next_deck);
   }

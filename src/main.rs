@@ -1,5 +1,5 @@
-use std::{fmt, fs, fs::OpenOptions, io, io::prelude::*, io::Read, io::SeekFrom, io::Write};
-use std::path::Path;
+use std::{fs, io};
+use std::path::PathBuf;
 use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
@@ -12,19 +12,46 @@ struct Args {
 
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct Config {
   shoe_count: u8,
   shuffle_at_penetration: f32,
-  mister_greens_gift: Decimal
+  #[serde(with = "rust_decimal::serde::str")]
+  mister_greens_gift: Decimal,
+  save_path: PathBuf,
 }
 
 impl Default for Config {
   fn default() -> Self {
+    let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
+    let data_dir = project_dirs.data_dir();
+    let save_path = data_dir.join("state.toml");
+
     Self {
       shoe_count: 4,
       shuffle_at_penetration: 0.75,
       mister_greens_gift: Decimal::new(1_000, 0),
+      save_path: save_path,
+    }
+  }
+}
+
+impl Config {
+  fn init_get() -> Self {
+    let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
+    let config_dir = project_dirs.config_dir();
+    fs::create_dir_all(config_dir).expect("Couldn't create config dir!");
+    let config_path = config_dir.join("config.toml");
+
+    match fs::read_to_string(&config_path) {
+      Ok(config_string) => {
+        toml::from_str(&config_string).unwrap()
+      },
+      Err(_) => {
+        let config = Self::default();
+        fs::write(config_path, toml::to_string(&config).unwrap()).unwrap();
+        config
+      }
     }
   }
 }
@@ -38,8 +65,7 @@ struct Casino {
 }
 
 impl Casino {
-  fn new() -> Self {
-    let config = Config::default();
+  fn new(config: Config) -> Self {
     Self {
       config: config.clone(),
       bankroll: config.mister_greens_gift,
@@ -49,24 +75,22 @@ impl Casino {
     }
   }
 
-  fn from_state(state: CasinoState) -> Self {
-    Self {
-      config: Config::default(),
-      bankroll: state.bankroll,
-      shoe: state.shoe.clone(),
-      bet: Decimal::ZERO,
-      insurance_flag: false,
-    }
-  }
+  fn from_filesystem() -> Self {
+    let config = Config::init_get();
 
-  fn from_path(path: &Path) -> Self {
-    match fs::read_to_string(&path) {
+    match fs::read_to_string(&config.save_path) {
       Ok(state_string) => {
         let state: CasinoState = toml::from_str(&state_string).unwrap();
-        Self::from_state(state)
+        Self {
+          config: config,
+          bankroll: state.bankroll,
+          shoe: state.shoe.clone(),
+          bet: Decimal::ZERO,
+          insurance_flag: false,
+        }
       },
       Err(_) => {
-        Self::new()
+        Self::new(config)
       }
     }
   }
@@ -91,7 +115,7 @@ impl Casino {
   }
 
   fn can_initial_bet(&self, amount: Decimal) -> bool {
-    amount.is_positive() && !amount.is_zero() && amount <= self.bankroll
+    amount.is_sign_positive() && !amount.is_zero() && amount <= self.bankroll
   }
 
   fn set_initial_bet(&mut self, amount: Decimal) {
@@ -130,9 +154,11 @@ impl Casino {
     self.bet * Decimal::new(2, 0)
   }
 
-  fn persist(&self, path: &Path) {
+  fn save(&self) {
     let state = CasinoState { bankroll: self.bankroll, shoe: self.shoe.clone() };
-    fs::write(path, toml::to_string(&state).unwrap());
+    let save_dir = self.config.save_path.parent().unwrap();
+    fs::create_dir_all(save_dir).expect("Couldn't create save directory!");
+    fs::write(&self.config.save_path, toml::to_string(&state).unwrap()).unwrap();
   }
 }
 
@@ -144,16 +170,9 @@ struct CasinoState {
 }
 
 fn main() {
-  let args = Args::parse();
+  let _args = Args::parse();
 
-  let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
-  let data_dir = project_dirs.data_dir();
-
-  fs::create_dir_all(data_dir).expect("Couldn't create data dir!");
-
-  let state_path = data_dir.join("state");
-
-  let mut state = Casino::from_path(&state_path);
+  let mut state = Casino::from_filesystem();
 
   println!("Your money: ${}", state.bankroll);
 
@@ -175,8 +194,8 @@ fn main() {
 
   println!("Betting ${}", state.bet);
 
-  let mut dealer_hidden;
-  let mut dealer_shown;
+  let dealer_hidden;
+  let dealer_shown;
   let mut your_hand = vec![];
 
   dealer_hidden = state.draw_card();
@@ -186,8 +205,6 @@ fn main() {
 
   println!("Dealer's hand: 🂠 {}", dealer_shown);
   println!("Your hand: {} ({})", hand_to_string(&your_hand), blackjack_sum(&your_hand));
-
-  let mut insurance_flag = false;
 
   if matches!(dealer_shown.value, Value::Ace) && state.can_bet_insurance() {
     println!("Insurance? [y/n]");
@@ -258,7 +275,7 @@ fn main() {
       println!("YOU WIN! You receive ${}. You now have ${}", state.bet, state.bankroll);
     }
 
-    if dealer_hand.len() == 2 && dealer_sum == 21 && insurance_flag {
+    if dealer_hand.len() == 2 && dealer_sum == 21 && state.insurance_flag {
       let insurance_payout = state.insurance_payout();
       state.win_insurance();
       println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}. You now have ${}.", state.bankroll);
@@ -275,7 +292,7 @@ fn main() {
     println!("* The man hands you $1000.00.");
   }
 
-  state.persist(&state_path);
+  state.save();
 }
 
 fn blackjack_sum(hand: &Vec<Card>) -> u8 {
