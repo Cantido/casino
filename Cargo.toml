@@ -12,4 +12,5 @@ inquire = "0.6.2"
 rand = "0.8.5"
 rust_decimal = { version = "1.33.1", features = ["serde-with-str"] }
 serde = { version = "1.0.193", features = ["derive"] }
+spinners = "4.1.1"
 toml = { version = "0.8.8", features = ["display", "parse"] }

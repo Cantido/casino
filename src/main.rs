@@ -5,6 +5,9 @@ use rust_decimal::prelude::*;
 use clap::Parser;
 use directories::{ProjectDirs};
 use serde::{Deserialize, Serialize};
+use spinners::{Spinner, Spinners};
+use std::thread::sleep;
+use std::time::Duration;
 use casino::cards::{Card, Hand, Value, shoe};
 
 #[derive(Parser, Debug)]
@@ -78,7 +81,6 @@ impl Casino {
 
   fn from_filesystem() -> Self {
     let config = Config::init_get();
-    println!("Reading state from {:?}", &config.save_path);
 
     match fs::read_to_string(&config.save_path) {
       Ok(state_string) => {
@@ -201,6 +203,10 @@ fn main() {
   dealer_hand.hidden_count = 1;
   let mut player_hand = Hand::new();
 
+  let mut sp = Spinner::new(Spinners::Dots, "Dealing cards...".into());
+  sleep(Duration::from_millis(1_500));
+  sp.stop_with_message("* The dealer issues your cards.".into());
+
   dealer_hand.push(state.draw_card());
   player_hand.push(state.draw_card());
   dealer_hand.push(state.draw_card());
@@ -229,7 +235,10 @@ fn main() {
 
     match ans {
       Ok("Hit") => {
-        println!("* The dealer deals you another card");
+        let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
+        sleep(Duration::from_millis(1_000));
+        sp.stop_with_message("* The dealer hands you another card.".into());
+
         player_hand.push(state.draw_card());
         println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
 
@@ -246,14 +255,26 @@ fn main() {
   }
 
   if player_hand.blackjack_sum() <= 21 {
+    let mut sp = Spinner::new(Spinners::Dots, "Revealing the hole card...".into());
+    sleep(Duration::from_millis(1_000));
+    sp.stop_with_message("* Hole card revealed!".into());
+
     dealer_hand.hidden_count = 0;
     println!("Dealer's hand: {} ({})", dealer_hand, dealer_hand.blackjack_sum());
 
     while dealer_hand.blackjack_sum() < 17 {
-      println!("* The dealer deals themself another card");
+      let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
+      sleep(Duration::from_millis(1_000));
+      sp.stop_with_message("* The dealer issues themself another card.".into());
+
       dealer_hand.push(state.draw_card());
       println!("Dealer's hand: {} ({})", dealer_hand, dealer_hand.blackjack_sum());
     }
+
+    let mut sp = Spinner::new(Spinners::Dots, "Determining outcome...".into());
+    sleep(Duration::from_millis(1_000));
+    sp.stop_with_message("* The hand is finished!".into());
+
 
     if dealer_hand.blackjack_sum() > 21 {
       state.win_bet();
@@ -262,7 +283,7 @@ fn main() {
       println!("PUSH! Nobody wins.");
     } else if dealer_hand.blackjack_sum() > player_hand.blackjack_sum() {
       state.lose_bet();
-      println!("YOU LOSE! You lose ${}. You now have ${}", state.bet, state.bankroll);
+      println!("HOUSE WINS! You lose ${}. You now have ${}", state.bet, state.bankroll);
     } else if player_hand.is_natural_blackjack() {
       state.win_bet_blackjack();
       let payout = state.blackjack_payout();
