@@ -12,14 +12,25 @@ struct Args {
 
 }
 
-#[derive(Deserialize, Debug, Serialize)]
-struct CasinoState {
-  #[serde(with = "rust_decimal::serde::str")]
-  bankroll: Decimal,
-  shoe: Vec<Card>,
+#[derive(Clone, Debug)]
+struct Config {
+  shoe_count: u8,
+  shuffle_at_penetration: f32,
+  mister_greens_gift: Decimal
+}
+
+impl Default for Config {
+  fn default() -> Self {
+    Self {
+      shoe_count: 4,
+      shuffle_at_penetration: 0.75,
+      mister_greens_gift: Decimal::new(1_000, 0),
+    }
+  }
 }
 
 struct Casino {
+  config: Config,
   bankroll: Decimal,
   shoe: Vec<Card>,
   bet: Decimal,
@@ -28,9 +39,11 @@ struct Casino {
 
 impl Casino {
   fn new() -> Self {
+    let config = Config::default();
     Self {
-      bankroll: Decimal::new(100000, 2),
-      shoe: shoe(4),
+      config: config.clone(),
+      bankroll: config.mister_greens_gift,
+      shoe: shoe(config.shoe_count),
       bet: Decimal::ZERO,
       insurance_flag: false,
     }
@@ -38,6 +51,7 @@ impl Casino {
 
   fn from_state(state: CasinoState) -> Self {
     Self {
+      config: Config::default(),
       bankroll: state.bankroll,
       shoe: state.shoe.clone(),
       bet: Decimal::ZERO,
@@ -60,9 +74,13 @@ impl Casino {
   fn draw_card(&mut self) -> Card {
     let card = self.shoe.pop().unwrap();
 
-    // assuming 4 decks in the shoe
-    if self.shoe.len() < 52 {
-      self.shoe = shoe(4);
+    let threshold_fraction: f32 = 1f32 - self.config.shuffle_at_penetration;
+    let starting_shoe_size: f32 = f32::from(self.config.shoe_count) * 52f32;
+
+    let low_card_threshold: usize = (starting_shoe_size * threshold_fraction) as usize;
+
+    if self.shoe.len() < low_card_threshold {
+      self.shoe = shoe(self.config.shoe_count);
     }
 
     return card
@@ -116,6 +134,13 @@ impl Casino {
     let state = CasinoState { bankroll: self.bankroll, shoe: self.shoe.clone() };
     fs::write(path, toml::to_string(&state).unwrap());
   }
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+struct CasinoState {
+  #[serde(with = "rust_decimal::serde::str")]
+  bankroll: Decimal,
+  shoe: Vec<Card>,
 }
 
 fn main() {
