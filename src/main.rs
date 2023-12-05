@@ -23,6 +23,7 @@ enum Commands {
   Blackjack,
   Stats,
   Shuffle,
+  Balance,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -415,6 +416,10 @@ fn main() {
       state.shuffle_shoe();
       state.save();
     },
+    Some(Commands::Balance) => {
+      let state = Casino::from_filesystem();
+      println!("${:.2}", state.bankroll);
+    }
     None => {
       let options = vec!["Blackjack"];
 
@@ -516,6 +521,7 @@ fn play_blackjack() {
           if state.player_hand.blackjack_sum() > 21 {
             let bet = state.bet;
             state.lose_bet();
+            current_hand = 1;
             println!("FIRST HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
           }
         } else if state.splitting && current_hand == 1 {
