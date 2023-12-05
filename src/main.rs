@@ -1,5 +1,6 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use anyhow::Result;
 use inquire::{Confirm, Select, Text};
 use rust_decimal::prelude::*;
 use clap::{Parser, Subcommand};
@@ -44,7 +45,47 @@ struct Config {
   stats_path: PathBuf,
 }
 
+impl Default for Config {
+  fn default() -> Self {
+    Self {
+      shoe_count: Self::default_shoe_count(),
+      shuffle_at_penetration: Self::default_shuffle_penetration(),
+      mister_greens_gift: Self::default_greens_gift(),
+      save_path: Self::default_save_path(),
+      stats_path: Self::default_stats_path(),
+    }
+  }
+}
+
 impl Config {
+  fn default_path() -> PathBuf {
+    let project_dirs = Self::project_dirs();
+    let config_dir = project_dirs.config_dir();
+    config_dir.join("config.toml")
+  }
+
+  fn from_path(config_path: &Path) -> Result<Self> {
+    let config_string = fs::read_to_string(&config_path)?;
+    Ok(toml::from_str(&config_string)?)
+  }
+
+  fn save(&self, config_path: &Path) -> Result<()> {
+    Ok(fs::write(&config_path, toml::to_string(&self)?)?)
+  }
+
+  fn init_get() -> Result<Self> {
+    let path = Self::default_path();
+
+    if let Ok(config) = Self::from_path(&path) {
+      return Ok(config)
+    } else {
+      let config = Self::default();
+      config.save(&path)?;
+
+      return Ok(config)
+    }
+  }
+
   fn default_shoe_count() -> u8 {
     4
   }
@@ -71,46 +112,6 @@ impl Config {
 
   fn project_dirs() -> ProjectDirs {
     ProjectDirs::from("dev", "Cosmicrose", "casino").unwrap()
-  }
-}
-
-impl Default for Config {
-  fn default() -> Self {
-    Self {
-      shoe_count: Self::default_shoe_count(),
-      shuffle_at_penetration: Self::default_shuffle_penetration(),
-      mister_greens_gift: Self::default_greens_gift(),
-      save_path: Self::default_save_path(),
-      stats_path: Self::default_stats_path(),
-    }
-  }
-}
-
-impl Config {
-  fn init_get() -> Self {
-    let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
-    let config_dir = project_dirs.config_dir();
-    fs::create_dir_all(config_dir).expect("Couldn't create config dir!");
-    let config_path = config_dir.join("config.toml");
-
-    match fs::read_to_string(&config_path) {
-      Ok(config_string) => {
-        match toml::from_str(&config_string) {
-          Ok(config) => config,
-          Err(_) => {
-            let _ = fs::remove_file(&config_path);
-            let config = Self::default();
-            fs::write(config_path, toml::to_string(&config).unwrap()).unwrap();
-            config
-          }
-        }
-      },
-      Err(_) => {
-        let config = Self::default();
-        fs::write(config_path, toml::to_string(&config).unwrap()).unwrap();
-        config
-      }
-    }
   }
 }
 
@@ -162,6 +163,7 @@ impl Statistics {
   }
 }
 
+#[derive(Default)]
 struct Casino {
   config: Config,
   bankroll: Decimal,
@@ -180,61 +182,41 @@ struct Casino {
 }
 
 impl Casino {
-  fn new(config: Config, stats: Statistics) -> Self {
+  fn new(config: Config) -> Self {
     Self {
       config: config.clone(),
-      stats: stats.clone(),
       bankroll: config.mister_greens_gift,
       shoe: shoe(config.shoe_count),
-      bet: Decimal::ZERO,
-      insurance_bet: Decimal::ZERO,
-      split_bet: Decimal::ZERO,
-      standing: false,
-      standing_split: false,
-      doubling_down: false,
-      splitting: false,
-      dealer_hand: Hand::new(),
-      player_hand: Hand::new(),
-      split_hand: Hand::new(),
+      dealer_hand: Hand::new_hidden(1),
+      ..Default::default()
     }
   }
 
-  fn from_filesystem() -> Self {
-    let config = Config::init_get();
+  fn from_filesystem() -> Result<Self> {
+    let config = Config::init_get()?;
+    let mut casino = Self::new(config);
 
-    let stats: Statistics = match fs::read_to_string(&config.stats_path) {
-      Ok(stats_string) => {
-        toml::from_str(&stats_string).unwrap()
-      },
-      Err(_) => {
-        Statistics::default()
-      }
-    };
+    casino.load_state();
+    casino.load_stats();
 
-    match fs::read_to_string(&config.save_path) {
-      Ok(state_string) => {
-        let state: CasinoState = toml::from_str(&state_string).unwrap();
-        Self {
-          config: config,
-          stats: stats,
-          bankroll: state.bankroll,
-          shoe: state.shoe.clone(),
-          bet: Decimal::ZERO,
-          insurance_bet: Decimal::ZERO,
-          split_bet: Decimal::ZERO,
-          standing: false,
-          standing_split: false,
-          doubling_down: false,
-          splitting: false,
-          dealer_hand: Hand::new_hidden(1),
-          player_hand: Hand::new(),
-          split_hand: Hand::new(),
-        }
-      },
-      Err(_) => {
-        Self::new(config, stats)
-      }
+    Ok(casino)
+  }
+
+  fn load_state(&mut self) {
+    if let Ok(state_string) = fs::read_to_string(&self.config.save_path) {
+      let state: CasinoState = toml::from_str(&state_string).unwrap();
+
+      self.bankroll = state.bankroll;
+      self.shoe = state.shoe.clone();
     }
+  }
+
+  fn load_stats(&mut self) {
+    if let Ok(stats_string) = fs::read_to_string(&self.config.stats_path) {
+      let stats: Statistics = toml::from_str(&stats_string).unwrap();
+
+      self.stats = stats;
+    };
   }
 
   fn draw_card(&mut self) -> Card {
@@ -423,12 +405,12 @@ struct CasinoState {
   shoe: Vec<Card>,
 }
 
-fn main() {
+fn main() -> Result<()> {
   let args = Args::parse();
 
   match &args.command {
     Some(Commands::Stats) => {
-      let state = Casino::from_filesystem();
+      let state = Casino::from_filesystem()?;
       let stats = state.stats;
 
       println!("Hands won...............{:.>15}", stats.hands_won);
@@ -442,15 +424,15 @@ fn main() {
       println!("Most money in the bank..{:.>15.2}", stats.biggest_bankroll);
     },
     Some(Commands::Blackjack) => {
-      play_blackjack();
+      play_blackjack()?;
     },
     Some(Commands::Shuffle) => {
-      let mut state = Casino::from_filesystem();
+      let mut state = Casino::from_filesystem()?;
       state.shuffle_shoe();
       state.save();
     },
     Some(Commands::Balance) => {
-      let state = Casino::from_filesystem();
+      let state = Casino::from_filesystem()?;
       println!("${:.2}", state.bankroll);
     }
     None => {
@@ -459,16 +441,17 @@ fn main() {
       let ans = Select::new("What would you like to play?", options).prompt();
 
       match ans {
-        Ok("Blackjack") => play_blackjack(),
+        Ok("Blackjack") => play_blackjack()?,
         Ok(_) => panic!("Unknown option"),
         Err(_) => panic!("Error fetching your choice"),
       }
     }
   }
+  Ok(())
 }
 
-fn play_blackjack() {
-  let mut state = Casino::from_filesystem();
+fn play_blackjack() -> Result<()> {
+  let mut state = Casino::from_filesystem()?;
 
   println!("Your money: ${:.2}", state.bankroll);
 
@@ -726,5 +709,6 @@ fn play_blackjack() {
   }
 
   state.save();
+  Ok(())
 }
 
