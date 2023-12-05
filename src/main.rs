@@ -31,27 +31,57 @@ enum Commands {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Config {
+  #[serde(default = "Config::default_shoe_count")]
   shoe_count: u8,
+  #[serde(default = "Config::default_shuffle_penetration")]
   shuffle_at_penetration: f32,
   #[serde(with = "rust_decimal::serde::str")]
+  #[serde(default = "Config::default_greens_gift")]
   mister_greens_gift: Decimal,
+  #[serde(default = "Config::default_save_path")]
   save_path: PathBuf,
+  #[serde(default = "Config::default_stats_path")]
   stats_path: PathBuf,
+}
+
+impl Config {
+  fn default_shoe_count() -> u8 {
+    4
+  }
+
+  fn default_shuffle_penetration() -> f32 {
+    0.75
+  }
+
+  fn default_greens_gift() -> Decimal {
+    Decimal::new(1_000, 0)
+  }
+
+  fn default_save_path() -> PathBuf {
+    let project_dirs = Self::project_dirs();
+    let data_dir = project_dirs.data_dir();
+    data_dir.join("state.toml")
+  }
+
+  fn default_stats_path() -> PathBuf {
+    let project_dirs = Self::project_dirs();
+    let data_dir = project_dirs.data_dir();
+    data_dir.join("stats.toml")
+  }
+
+  fn project_dirs() -> ProjectDirs {
+    ProjectDirs::from("dev", "Cosmicrose", "casino").unwrap()
+  }
 }
 
 impl Default for Config {
   fn default() -> Self {
-    let project_dirs = ProjectDirs::from("dev", "Cosmicrose", "casino").unwrap();
-    let data_dir = project_dirs.data_dir();
-    let save_path = data_dir.join("state.toml");
-    let stats_path = data_dir.join("stats.toml");
-
     Self {
-      shoe_count: 4,
-      shuffle_at_penetration: 0.75,
-      mister_greens_gift: Decimal::new(1_000, 0),
-      save_path: save_path,
-      stats_path: stats_path,
+      shoe_count: Self::default_shoe_count(),
+      shuffle_at_penetration: Self::default_shuffle_penetration(),
+      mister_greens_gift: Self::default_greens_gift(),
+      save_path: Self::default_save_path(),
+      stats_path: Self::default_stats_path(),
     }
   }
 }
