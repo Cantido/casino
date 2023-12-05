@@ -540,7 +540,7 @@ fn play_blackjack() {
           state.card_to_player();
           println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
 
-          if state.split_hand.blackjack_sum() > 21 {
+          if state.player_hand.blackjack_sum() > 21 {
             let bet = state.bet;
             state.lose_bet();
             println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
