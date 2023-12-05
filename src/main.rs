@@ -28,6 +28,8 @@ enum Commands {
   Shuffle,
   /// Show currency balance
   Balance,
+  /// Clears game state and statistics
+  Reset,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -434,6 +436,13 @@ fn main() -> Result<()> {
     Some(Commands::Balance) => {
       let state = Casino::from_filesystem()?;
       println!("${:.2}", state.bankroll);
+    }
+    Some(Commands::Reset) => {
+      let cfg_path = Config::default_path();
+      let config = Config::from_path(&cfg_path)?;
+
+      fs::remove_file(&config.save_path)?;
+      fs::remove_file(&config.stats_path)?;
     }
     None => {
       let options = vec!["Blackjack"];
