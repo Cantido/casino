@@ -41,7 +41,7 @@ struct Config {
 
 impl Default for Config {
   fn default() -> Self {
-    let project_dirs = ProjectDirs::from("", "", "casino").unwrap();
+    let project_dirs = ProjectDirs::from("dev", "Cosmicrose", "casino").unwrap();
     let data_dir = project_dirs.data_dir();
     let save_path = data_dir.join("state.toml");
     let stats_path = data_dir.join("stats.toml");
