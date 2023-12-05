@@ -239,8 +239,9 @@ impl Casino {
   }
 
   fn place_insurance_bet(&mut self) {
-    self.insurance_bet += self.bet;
-    self.bankroll -= self.bet;
+    let bet_amount = (self.bet / Decimal::new(2, 0)).round_dp(2);
+    self.insurance_bet += bet_amount;
+    self.bankroll -= bet_amount;
   }
 
   fn can_double_down(&self) -> bool {
