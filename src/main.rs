@@ -17,12 +17,15 @@ struct Args {
   command: Option<Commands>
 }
 
-
 #[derive(Debug, Subcommand)]
 enum Commands {
+  /// Play a hand of blackjack
   Blackjack,
+  /// Show lifetime statistics
   Stats,
+  /// Shuffle the persisted deck state
   Shuffle,
+  /// Show currency balance
   Balance,
 }
 
