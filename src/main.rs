@@ -133,7 +133,7 @@ struct Casino {
   bankroll: Decimal,
   shoe: Vec<Card>,
   bet: Decimal,
-  insurance_flag: bool,
+  insurance_bet: Decimal,
   doubling_down: bool,
   stats: Statistics,
 }
@@ -146,7 +146,7 @@ impl Casino {
       bankroll: config.mister_greens_gift,
       shoe: shoe(config.shoe_count),
       bet: Decimal::ZERO,
-      insurance_flag: false,
+      insurance_bet: Decimal::ZERO,
       doubling_down: false,
     }
   }
@@ -172,7 +172,7 @@ impl Casino {
           bankroll: state.bankroll,
           shoe: state.shoe.clone(),
           bet: Decimal::ZERO,
-          insurance_flag: false,
+          insurance_bet: Decimal::ZERO,
           doubling_down: false,
         }
       },
@@ -206,24 +206,26 @@ impl Casino {
     self.stats.update_bankroll(self.bankroll);
   }
 
-  fn can_initial_bet(&self, amount: Decimal) -> bool {
+  fn can_increase_bet(&self, amount: Decimal) -> bool {
     amount.is_sign_positive() && !amount.is_zero() && amount <= self.bankroll
   }
 
-  fn set_initial_bet(&mut self, amount: Decimal) {
-    self.bet = amount;
+  fn increase_bet(&mut self, amount: Decimal) {
+    self.bet += amount;
+    self.bankroll -= amount;
   }
 
   fn can_bet_insurance(&self) -> bool {
-    self.bet * Decimal::new(2, 0) <= self.bankroll
+    self.bet <= self.bankroll
   }
 
   fn place_insurance_bet(&mut self) {
-    self.insurance_flag = true;
+    self.insurance_bet += self.bet;
+    self.bankroll -= self.bet;
   }
 
   fn can_double_down(&self) -> bool {
-    self.bet * Decimal::new(2, 0) <= self.bankroll
+    self.bet <= self.bankroll
   }
 
   fn double_down(&mut self) {
@@ -233,29 +235,38 @@ impl Casino {
 
   fn lose_bet(&mut self) {
     self.stats.record_loss(self.bet);
-    self.bankroll -= self.bet;
     self.stats.update_bankroll(self.bankroll);
+    self.bet = Decimal::ZERO;
   }
 
   fn win_bet(&mut self) {
-    self.stats.record_win(self.bet);
-    self.bankroll += self.bet;
+    self.stats.record_win(self.win_payout());
+    self.bankroll += self.bet + self.win_payout();
     self.stats.update_bankroll(self.bankroll);
+    self.bet = Decimal::ZERO;
   }
 
   fn win_bet_blackjack(&mut self) {
     self.stats.record_win(self.blackjack_payout());
-    self.bankroll += self.blackjack_payout();
+    self.bankroll += self.bet + self.blackjack_payout();
     self.stats.update_bankroll(self.bankroll);
+    self.bet = Decimal::ZERO;
   }
 
   fn win_insurance(&mut self) {
-    self.bankroll += self.insurance_payout();
+    self.bankroll += self.bet + self.insurance_payout();
     self.stats.update_bankroll(self.bankroll);
+    self.insurance_bet = Decimal::ZERO;
   }
 
   fn push_bet(&mut self) {
     self.stats.record_push();
+    self.bankroll += self.bet;
+    self.bet = Decimal::ZERO;
+  }
+
+  fn win_payout(&self) -> Decimal {
+    self.bet
   }
 
   fn blackjack_payout(&self) -> Decimal {
@@ -336,8 +347,8 @@ fn play_blackjack() {
     match bet_result {
       Ok(bet_text) => {
         let bet = bet_text.trim().parse::<Decimal>().unwrap().round_dp(2);
-        if state.can_initial_bet(bet) {
-          state.set_initial_bet(bet);
+        if state.can_increase_bet(bet) {
+          state.increase_bet(bet);
           break;
         } else {
           println!("You can't bet that amount, try again.");
@@ -451,24 +462,27 @@ fn play_blackjack() {
 
 
     if dealer_hand.blackjack_sum() > 21 {
+      let bet = state.bet;
       state.win_bet();
-      println!("DEALER BUST! You receive ${}. You now have ${}", state.bet, state.bankroll);
+      println!("DEALER BUST! You receive ${}. You now have ${}", bet, state.bankroll);
     } else if dealer_hand.blackjack_sum() == player_hand.blackjack_sum() {
       state.push_bet();
       println!("PUSH! Nobody wins.");
     } else if dealer_hand.blackjack_sum() > player_hand.blackjack_sum() {
+      let bet = state.bet;
       state.lose_bet();
-      println!("HOUSE WINS! You lose ${}. You now have ${}", state.bet, state.bankroll);
+      println!("HOUSE WINS! You lose ${}. You now have ${}", bet, state.bankroll);
     } else if player_hand.is_natural_blackjack() {
       state.win_bet_blackjack();
       let payout = state.blackjack_payout();
       println!("BLACKJACK! You receive ${payout}. You now have ${}", state.bankroll);
     } else {
+      let bet = state.bet;
       state.win_bet();
-      println!("YOU WIN! You receive ${}. You now have ${}", state.bet, state.bankroll);
+      println!("YOU WIN! You receive ${}. You now have ${}", bet, state.bankroll);
     }
 
-    if dealer_hand.is_natural_blackjack() && state.insurance_flag {
+    if dealer_hand.is_natural_blackjack() && !state.insurance_bet.is_zero() {
       let insurance_payout = state.insurance_payout();
       state.win_insurance();
       println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}. You now have ${}.", state.bankroll);
