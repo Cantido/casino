@@ -12,7 +12,7 @@ pub enum Suit {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Value {
   Ace,
   Two,
