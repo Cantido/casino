@@ -134,6 +134,7 @@ struct Casino {
   shoe: Vec<Card>,
   bet: Decimal,
   insurance_flag: bool,
+  doubling_down: bool,
   stats: Statistics,
 }
 
@@ -146,6 +147,7 @@ impl Casino {
       shoe: shoe(config.shoe_count),
       bet: Decimal::ZERO,
       insurance_flag: false,
+      doubling_down: false,
     }
   }
 
@@ -171,6 +173,7 @@ impl Casino {
           shoe: state.shoe.clone(),
           bet: Decimal::ZERO,
           insurance_flag: false,
+          doubling_down: false,
         }
       },
       Err(_) => {
@@ -217,6 +220,15 @@ impl Casino {
 
   fn place_insurance_bet(&mut self) {
     self.insurance_flag = true;
+  }
+
+  fn can_double_down(&self) -> bool {
+    self.bet * Decimal::new(2, 0) <= self.bankroll
+  }
+
+  fn double_down(&mut self) {
+    self.doubling_down = true;
+    self.bet *= Decimal::new(2, 0);
   }
 
   fn lose_bet(&mut self) {
@@ -367,9 +379,16 @@ fn play_blackjack() {
   }
 
   loop {
-    let options = vec!["Hit", "Stand"];
+    let player_sum = player_hand.blackjack_sum();
 
-    let ans = Select::new("Hit or stand?", options).prompt();
+    let options =
+      if player_hand.cards.len() == 2 && !state.doubling_down && state.can_double_down() && (player_sum == 10 || player_sum == 11) {
+        vec!["Hit", "Stand", "Double"]
+      } else {
+        vec!["Hit", "Stand"]
+      };
+
+    let ans = Select::new("What will you do?", options).prompt();
 
     match ans {
       Ok("Hit") => {
@@ -385,6 +404,23 @@ fn play_blackjack() {
           println!("BUST! You lose ${}. You now have ${}", state.bet, state.bankroll);
           break;
         }
+      },
+      Ok("Double") => {
+        state.double_down();
+        println!("Your bet is now ${:.2}, and you will only receive one more card.", state.bet);
+
+        let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
+        sleep(Duration::from_millis(1_000));
+        sp.stop_with_message("* The dealer hands you another card.".into());
+
+        player_hand.push(state.draw_card());
+        println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
+
+        if player_hand.blackjack_sum() > 21 {
+          state.lose_bet();
+          println!("BUST! You lose ${}. You now have ${}", state.bet, state.bankroll);
+        }
+        break;
       },
       Ok("Stand") => break,
       Ok(_) => panic!("Unknown answer received"),
