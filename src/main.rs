@@ -339,7 +339,7 @@ fn main() {
 fn play_blackjack() {
   let mut state = Casino::from_filesystem();
 
-  println!("Your money: ${}", state.bankroll);
+  println!("Your money: ${:.2}", state.bankroll);
 
   loop {
     let bet_result = Text::new("How much will you bet?").prompt();
@@ -358,7 +358,7 @@ fn play_blackjack() {
     }
   }
 
-  println!("Betting ${}", state.bet);
+  println!("Betting ${:.2}", state.bet);
 
   let mut dealer_hand = Hand::new();
   dealer_hand.hidden_count = 1;
@@ -382,7 +382,7 @@ fn play_blackjack() {
     match ans {
       Ok(true) => {
         state.place_insurance_bet();
-        println!("You make an additional ${} insurance bet.", state.bet);
+        println!("You make an additional ${:.2} insurance bet.", state.insurance_bet);
       },
       Ok(false) => println!("You choose for forgo making an insurance bet."),
       Err(_) => panic!("Error getting your answer"),
@@ -411,8 +411,9 @@ fn play_blackjack() {
         println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
 
         if player_hand.blackjack_sum() > 21 {
+          let bet = state.bet;
           state.lose_bet();
-          println!("BUST! You lose ${}. You now have ${}", state.bet, state.bankroll);
+          println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
           break;
         }
       },
@@ -428,8 +429,9 @@ fn play_blackjack() {
         println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
 
         if player_hand.blackjack_sum() > 21 {
+          let bet = state.bet;
           state.lose_bet();
-          println!("BUST! You lose ${}. You now have ${}", state.bet, state.bankroll);
+          println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
         }
         break;
       },
@@ -464,28 +466,28 @@ fn play_blackjack() {
     if dealer_hand.blackjack_sum() > 21 {
       let bet = state.bet;
       state.win_bet();
-      println!("DEALER BUST! You receive ${}. You now have ${}", bet, state.bankroll);
+      println!("DEALER BUST! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
     } else if dealer_hand.blackjack_sum() == player_hand.blackjack_sum() {
       state.push_bet();
       println!("PUSH! Nobody wins.");
     } else if dealer_hand.blackjack_sum() > player_hand.blackjack_sum() {
       let bet = state.bet;
       state.lose_bet();
-      println!("HOUSE WINS! You lose ${}. You now have ${}", bet, state.bankroll);
+      println!("HOUSE WINS! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
     } else if player_hand.is_natural_blackjack() {
       state.win_bet_blackjack();
       let payout = state.blackjack_payout();
-      println!("BLACKJACK! You receive ${payout}. You now have ${}", state.bankroll);
+      println!("BLACKJACK! You receive ${:.2}. You now have ${:.2}", payout, state.bankroll);
     } else {
       let bet = state.bet;
       state.win_bet();
-      println!("YOU WIN! You receive ${}. You now have ${}", bet, state.bankroll);
+      println!("YOU WIN! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
     }
 
     if dealer_hand.is_natural_blackjack() && !state.insurance_bet.is_zero() {
       let insurance_payout = state.insurance_payout();
       state.win_insurance();
-      println!("DEALER BLACKJACK! Your insurance bet pays out ${insurance_payout}. You now have ${}.", state.bankroll);
+      println!("DEALER BLACKJACK! Your insurance bet pays out ${:.2}. You now have ${:.2}.", insurance_payout, state.bankroll);
     }
   }
 
@@ -496,7 +498,7 @@ fn play_blackjack() {
     println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
     println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
     println!("* \"Oh, and always remember the name: MISTER GREEN!\"");
-    println!("* The man hands you ${}.", state.config.mister_greens_gift);
+    println!("* The man hands you ${:.2}.", state.config.mister_greens_gift);
   }
 
   state.save();
