@@ -125,6 +125,12 @@ impl Hand {
     Hand::default()
   }
 
+  pub fn new_hidden(hidden_count: usize) -> Self {
+    let mut hand = Hand::default();
+    hand.hidden_count = hidden_count;
+    hand
+  }
+
   pub fn push(&mut self, card: Card) {
     self.cards.push(card);
   }

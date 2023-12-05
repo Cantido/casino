@@ -136,6 +136,8 @@ struct Casino {
   insurance_bet: Decimal,
   doubling_down: bool,
   stats: Statistics,
+  dealer_hand: Hand,
+  player_hand: Hand,
 }
 
 impl Casino {
@@ -148,6 +150,8 @@ impl Casino {
       bet: Decimal::ZERO,
       insurance_bet: Decimal::ZERO,
       doubling_down: false,
+      dealer_hand: Hand::new(),
+      player_hand: Hand::new(),
     }
   }
 
@@ -174,6 +178,8 @@ impl Casino {
           bet: Decimal::ZERO,
           insurance_bet: Decimal::ZERO,
           doubling_down: false,
+          dealer_hand: Hand::new_hidden(1),
+          player_hand: Hand::new(),
         }
       },
       Err(_) => {
@@ -201,6 +207,16 @@ impl Casino {
     self.shoe = shoe(self.config.shoe_count);
   }
 
+  fn card_to_dealer(&mut self) {
+    let card = self.draw_card();
+    self.dealer_hand.push(card);
+  }
+
+  fn card_to_player(&mut self) {
+    let card = self.draw_card();
+    self.player_hand.push(card);
+  }
+
   fn add_bankroll(&mut self, amount: Decimal) {
     self.bankroll += amount;
     self.stats.update_bankroll(self.bankroll);
@@ -215,8 +231,11 @@ impl Casino {
     self.bankroll -= amount;
   }
 
-  fn can_bet_insurance(&self) -> bool {
-    self.bet <= self.bankroll
+  fn can_place_insurance_bet(&self) -> bool {
+    match self.dealer_hand.face_card().value {
+      Value::Ace => self.bet <= self.bankroll,
+      _ => false,
+    }
   }
 
   fn place_insurance_bet(&mut self) {
@@ -225,7 +244,11 @@ impl Casino {
   }
 
   fn can_double_down(&self) -> bool {
-    self.bet <= self.bankroll
+    let player_sum = self.player_hand.blackjack_sum();
+    self.player_hand.cards.len() == 2 &&
+      !self.doubling_down &&
+      self.bet <= self.bankroll &&
+      (player_sum == 10 || player_sum == 11)
   }
 
   fn double_down(&mut self) {
@@ -360,23 +383,19 @@ fn play_blackjack() {
 
   println!("Betting ${:.2}", state.bet);
 
-  let mut dealer_hand = Hand::new();
-  dealer_hand.hidden_count = 1;
-  let mut player_hand = Hand::new();
-
   let mut sp = Spinner::new(Spinners::Dots, "Dealing cards...".into());
   sleep(Duration::from_millis(1_500));
   sp.stop_with_message("* The dealer issues your cards.".into());
 
-  dealer_hand.push(state.draw_card());
-  player_hand.push(state.draw_card());
-  dealer_hand.push(state.draw_card());
-  player_hand.push(state.draw_card());
+  state.card_to_dealer();
+  state.card_to_player();
+  state.card_to_dealer();
+  state.card_to_player();
 
-  println!("Dealer's hand: {}", dealer_hand);
-  println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
+  println!("Dealer's hand: {}", state.dealer_hand);
+  println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
 
-  if matches!(dealer_hand.face_card().value, Value::Ace) && state.can_bet_insurance() {
+  if state.can_place_insurance_bet() {
     let ans = Confirm::new("Insurance?").with_default(false).prompt();
 
     match ans {
@@ -390,10 +409,8 @@ fn play_blackjack() {
   }
 
   loop {
-    let player_sum = player_hand.blackjack_sum();
-
     let options =
-      if player_hand.cards.len() == 2 && !state.doubling_down && state.can_double_down() && (player_sum == 10 || player_sum == 11) {
+      if state.can_double_down() {
         vec!["Hit", "Stand", "Double"]
       } else {
         vec!["Hit", "Stand"]
@@ -407,10 +424,10 @@ fn play_blackjack() {
         sleep(Duration::from_millis(1_000));
         sp.stop_with_message("* The dealer hands you another card.".into());
 
-        player_hand.push(state.draw_card());
-        println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
+        state.card_to_player();
+        println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
 
-        if player_hand.blackjack_sum() > 21 {
+        if state.player_hand.blackjack_sum() > 21 {
           let bet = state.bet;
           state.lose_bet();
           println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
@@ -425,10 +442,10 @@ fn play_blackjack() {
         sleep(Duration::from_millis(1_000));
         sp.stop_with_message("* The dealer hands you another card.".into());
 
-        player_hand.push(state.draw_card());
-        println!("Your hand: {} ({})", player_hand, player_hand.blackjack_sum());
+        state.card_to_player();
+        println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
 
-        if player_hand.blackjack_sum() > 21 {
+        if state.player_hand.blackjack_sum() > 21 {
           let bet = state.bet;
           state.lose_bet();
           println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
@@ -441,21 +458,21 @@ fn play_blackjack() {
     }
   }
 
-  if player_hand.blackjack_sum() <= 21 {
+  if state.player_hand.blackjack_sum() <= 21 {
     let mut sp = Spinner::new(Spinners::Dots, "Revealing the hole card...".into());
     sleep(Duration::from_millis(1_000));
     sp.stop_with_message("* Hole card revealed!".into());
 
-    dealer_hand.hidden_count = 0;
-    println!("Dealer's hand: {} ({})", dealer_hand, dealer_hand.blackjack_sum());
+    state.dealer_hand.hidden_count = 0;
+    println!("Dealer's hand: {} ({})", state.dealer_hand, state.dealer_hand.blackjack_sum());
 
-    while dealer_hand.blackjack_sum() < 17 {
+    while state.dealer_hand.blackjack_sum() < 17 {
       let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
       sleep(Duration::from_millis(1_000));
       sp.stop_with_message("* The dealer issues themself another card.".into());
 
-      dealer_hand.push(state.draw_card());
-      println!("Dealer's hand: {} ({})", dealer_hand, dealer_hand.blackjack_sum());
+      state.card_to_dealer();
+      println!("Dealer's hand: {} ({})", state.dealer_hand, state.dealer_hand.blackjack_sum());
     }
 
     let mut sp = Spinner::new(Spinners::Dots, "Determining outcome...".into());
@@ -463,18 +480,18 @@ fn play_blackjack() {
     sp.stop_with_message("* The hand is finished!".into());
 
 
-    if dealer_hand.blackjack_sum() > 21 {
+    if state.dealer_hand.blackjack_sum() > 21 {
       let bet = state.bet;
       state.win_bet();
       println!("DEALER BUST! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
-    } else if dealer_hand.blackjack_sum() == player_hand.blackjack_sum() {
+    } else if state.dealer_hand.blackjack_sum() == state.player_hand.blackjack_sum() {
       state.push_bet();
       println!("PUSH! Nobody wins.");
-    } else if dealer_hand.blackjack_sum() > player_hand.blackjack_sum() {
+    } else if state.dealer_hand.blackjack_sum() > state.player_hand.blackjack_sum() {
       let bet = state.bet;
       state.lose_bet();
       println!("HOUSE WINS! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
-    } else if player_hand.is_natural_blackjack() {
+    } else if state.player_hand.is_natural_blackjack() {
       state.win_bet_blackjack();
       let payout = state.blackjack_payout();
       println!("BLACKJACK! You receive ${:.2}. You now have ${:.2}", payout, state.bankroll);
@@ -484,7 +501,7 @@ fn play_blackjack() {
       println!("YOU WIN! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
     }
 
-    if dealer_hand.is_natural_blackjack() && !state.insurance_bet.is_zero() {
+    if state.dealer_hand.is_natural_blackjack() && !state.insurance_bet.is_zero() {
       let insurance_payout = state.insurance_payout();
       state.win_insurance();
       println!("DEALER BLACKJACK! Your insurance bet pays out ${:.2}. You now have ${:.2}.", insurance_payout, state.bankroll);
