@@ -244,10 +244,8 @@ impl Casino {
     fs::write(&self.config.stats_path, toml::to_string(&self.stats).unwrap()).unwrap();
   }
 
-  pub fn play_blackjack() -> Result<()> {
-    let mut state = Casino::from_filesystem()?;
-
-    println!("Your money: ${:.2}", state.bankroll);
+  pub fn play_blackjack(&mut self) -> Result<()> {
+    println!("Your money: ${:.2}", self.bankroll);
 
     loop {
       let bet_result = Text::new("How much will you bet?").prompt();
@@ -255,8 +253,8 @@ impl Casino {
       match bet_result {
         Ok(bet_text) => {
           let bet = bet_text.trim().parse::<Decimal>().unwrap().round_dp(2);
-          if state.can_increase_bet(bet) {
-            state.increase_bet(bet);
+          if self.can_increase_bet(bet) {
+            self.increase_bet(bet);
             break;
           } else {
             println!("You can't bet that amount, try again.");
@@ -266,27 +264,27 @@ impl Casino {
       }
     }
 
-    println!("Betting ${:.2}", state.bet);
+    println!("Betting ${:.2}", self.bet);
 
     let mut sp = Spinner::new(Spinners::Dots, "Dealing cards...".into());
     sleep(Duration::from_millis(1_500));
     sp.stop_with_message("* The dealer issues your cards.".into());
 
-    state.card_to_dealer();
-    state.card_to_player();
-    state.card_to_dealer();
-    state.card_to_player();
+    self.card_to_dealer();
+    self.card_to_player();
+    self.card_to_dealer();
+    self.card_to_player();
 
-    println!("Dealer's hand: {}", state.dealer_hand);
-    println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
+    println!("Dealer's hand: {}", self.dealer_hand);
+    println!("Your hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
 
-    if state.can_place_insurance_bet() {
+    if self.can_place_insurance_bet() {
       let ans = Confirm::new("Insurance?").with_default(false).prompt();
 
       match ans {
         Ok(true) => {
-          state.place_insurance_bet();
-          println!("You make an additional ${:.2} insurance bet.", state.insurance_bet);
+          self.place_insurance_bet();
+          println!("You make an additional ${:.2} insurance bet.", self.insurance_bet);
         },
         Ok(false) => println!("You choose for forgo making an insurance bet."),
         Err(_) => panic!("Error getting your answer"),
@@ -295,22 +293,22 @@ impl Casino {
 
     let mut current_hand = 0;
 
-    while !(state.standing || state.player_hand.blackjack_sum() > 21) || (state.splitting && !(state.standing_split || state.split_hand.blackjack_sum() > 21)) {
+    while !(self.standing || self.player_hand.blackjack_sum() > 21) || (self.splitting && !(self.standing_split || self.split_hand.blackjack_sum() > 21)) {
 
       let mut options = vec!["Hit", "Stand"];
 
-      if state.can_double_down() {
+      if self.can_double_down() {
         options.push("Double");
       }
 
-      if state.can_split() {
+      if self.can_split() {
         options.push("Split");
       }
 
       let prompt =
-        if state.splitting && current_hand == 0 {
+        if self.splitting && current_hand == 0 {
           "What will you do with your first hand?"
-        } else if state.splitting && current_hand == 1 {
+        } else if self.splitting && current_hand == 1 {
           "What will you do with your second hand?"
         } else {
           "What will you do?"
@@ -324,86 +322,86 @@ impl Casino {
           sleep(Duration::from_millis(1_000));
           sp.stop_with_message("* The dealer hands you another card.".into());
 
-          if state.splitting && current_hand == 0 {
-            state.card_to_player();
-            println!("Your first hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
+          if self.splitting && current_hand == 0 {
+            self.card_to_player();
+            println!("Your first hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
 
-            if state.player_hand.blackjack_sum() > 21 {
-              let bet = state.bet;
-              state.lose_bet();
+            if self.player_hand.blackjack_sum() > 21 {
+              let bet = self.bet;
+              self.lose_bet();
               current_hand = 1;
-              println!("FIRST HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
+              println!("FIRST HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
             }
-          } else if state.splitting && current_hand == 1 {
-            state.card_to_split();
-            println!("Your second hand: {} ({})", state.split_hand, state.split_hand.blackjack_sum());
+          } else if self.splitting && current_hand == 1 {
+            self.card_to_split();
+            println!("Your second hand: {} ({})", self.split_hand, self.split_hand.blackjack_sum());
 
-            if state.split_hand.blackjack_sum() > 21 {
-              let bet = state.split_bet;
-              state.lose_split_bet();
-              println!("SECOND HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
+            if self.split_hand.blackjack_sum() > 21 {
+              let bet = self.split_bet;
+              self.lose_split_bet();
+              println!("SECOND HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
             }
           } else {
-            state.card_to_player();
-            println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
+            self.card_to_player();
+            println!("Your hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
 
-            if state.player_hand.blackjack_sum() > 21 {
-              let bet = state.bet;
-              state.lose_bet();
-              println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
+            if self.player_hand.blackjack_sum() > 21 {
+              let bet = self.bet;
+              self.lose_bet();
+              println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
             }
           }
         },
         Ok("Double") => {
-          state.double_down();
-          println!("Your bet is now ${:.2}, and you will only receive one more card.", state.bet);
+          self.double_down();
+          println!("Your bet is now ${:.2}, and you will only receive one more card.", self.bet);
 
           let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
           sleep(Duration::from_millis(1_000));
           sp.stop_with_message("* The dealer hands you another card.".into());
 
-          state.card_to_player();
-          println!("Your hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
+          self.card_to_player();
+          println!("Your hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
 
-          if state.player_hand.blackjack_sum() > 21 {
-            let bet = state.bet;
-            state.lose_bet();
-            println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
+          if self.player_hand.blackjack_sum() > 21 {
+            let bet = self.bet;
+            self.lose_bet();
+            println!("BUST! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
           }
-          state.standing = true;
+          self.standing = true;
         },
         Ok("Split") => {
-          state.split();
-          println!("You split your hand and place a second ${:.2} bet.", state.split_bet);
+          self.split();
+          println!("You split your hand and place a second ${:.2} bet.", self.split_bet);
 
           let mut sp = Spinner::new(Spinners::Dots, "Dealing your cards...".into());
           sleep(Duration::from_millis(1_000));
           sp.stop_with_message("* The dealer hands you another two cards.".into());
 
-          state.card_to_player();
-          state.card_to_split();
+          self.card_to_player();
+          self.card_to_split();
 
-          println!("Your first hand: {} ({})", state.player_hand, state.player_hand.blackjack_sum());
-          println!("Your second hand: {} ({})", state.split_hand, state.split_hand.blackjack_sum());
+          println!("Your first hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
+          println!("Your second hand: {} ({})", self.split_hand, self.split_hand.blackjack_sum());
 
-          if state.player_hand.blackjack_sum() > 21 {
-            let bet = state.bet;
-            state.lose_bet();
-            println!("FIRST HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
+          if self.player_hand.blackjack_sum() > 21 {
+            let bet = self.bet;
+            self.lose_bet();
+            println!("FIRST HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
           }
 
-          if state.split_hand.blackjack_sum() > 21 {
-            let bet = state.split_bet;
-            state.lose_split_bet();
-            println!("SECOND HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
+          if self.split_hand.blackjack_sum() > 21 {
+            let bet = self.split_bet;
+            self.lose_split_bet();
+            println!("SECOND HAND BUST! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
           }
         },
         Ok("Stand") => {
           if current_hand == 0 {
-            state.standing = true;
+            self.standing = true;
             current_hand = 1;
           } else if current_hand == 1 {
-            state.standing_split = true;
+            self.standing_split = true;
           }
         },
         Ok(_) => panic!("Unknown answer received"),
@@ -411,96 +409,96 @@ impl Casino {
       }
     }
 
-    if state.player_hand.blackjack_sum() <= 21 || (state.splitting && state.split_hand.blackjack_sum() <= 21) {
+    if self.player_hand.blackjack_sum() <= 21 || (self.splitting && self.split_hand.blackjack_sum() <= 21) {
       let mut sp = Spinner::new(Spinners::Dots, "Revealing the hole card...".into());
       sleep(Duration::from_millis(1_000));
       sp.stop_with_message("* Hole card revealed!".into());
 
-      state.dealer_hand.hidden_count = 0;
-      println!("Dealer's hand: {} ({})", state.dealer_hand, state.dealer_hand.blackjack_sum());
+      self.dealer_hand.hidden_count = 0;
+      println!("Dealer's hand: {} ({})", self.dealer_hand, self.dealer_hand.blackjack_sum());
 
-      while state.dealer_hand.blackjack_sum() < 17 {
+      while self.dealer_hand.blackjack_sum() < 17 {
         let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
         sleep(Duration::from_millis(1_000));
         sp.stop_with_message("* The dealer issues themself another card.".into());
 
-        state.card_to_dealer();
-        println!("Dealer's hand: {} ({})", state.dealer_hand, state.dealer_hand.blackjack_sum());
+        self.card_to_dealer();
+        println!("Dealer's hand: {} ({})", self.dealer_hand, self.dealer_hand.blackjack_sum());
       }
 
       let mut sp = Spinner::new(Spinners::Dots, "Determining outcome...".into());
       sleep(Duration::from_millis(1_000));
       sp.stop_with_message("* The hand is finished!".into());
 
-      if state.player_hand.blackjack_sum() <= 21 {
-        if state.splitting {
+      if self.player_hand.blackjack_sum() <= 21 {
+        if self.splitting {
           print!("First hand result: ");
         }
 
-        if state.dealer_hand.blackjack_sum() > 21 {
-          let bet = state.bet;
-          state.win_bet();
-          println!("DEALER BUST! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
-        } else if state.dealer_hand.blackjack_sum() == state.player_hand.blackjack_sum() {
-          state.push_bet();
+        if self.dealer_hand.blackjack_sum() > 21 {
+          let bet = self.bet;
+          self.win_bet();
+          println!("DEALER BUST! You receive ${:.2}. You now have ${:.2}", bet, self.bankroll);
+        } else if self.dealer_hand.blackjack_sum() == self.player_hand.blackjack_sum() {
+          self.push_bet();
           println!("PUSH! Nobody wins.");
-        } else if state.dealer_hand.blackjack_sum() > state.player_hand.blackjack_sum() {
-          let bet = state.bet;
-          state.lose_bet();
-          println!("HOUSE WINS! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
-        } else if state.player_hand.is_natural_blackjack() {
-          state.win_bet_blackjack();
-          let payout = state.blackjack_payout();
-          println!("BLACKJACK! You receive ${:.2}. You now have ${:.2}", payout, state.bankroll);
+        } else if self.dealer_hand.blackjack_sum() > self.player_hand.blackjack_sum() {
+          let bet = self.bet;
+          self.lose_bet();
+          println!("HOUSE WINS! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
+        } else if self.player_hand.is_natural_blackjack() {
+          self.win_bet_blackjack();
+          let payout = self.blackjack_payout();
+          println!("BLACKJACK! You receive ${:.2}. You now have ${:.2}", payout, self.bankroll);
         } else {
-          let bet = state.bet;
-          state.win_bet();
-          println!("YOU WIN! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
+          let bet = self.bet;
+          self.win_bet();
+          println!("YOU WIN! You receive ${:.2}. You now have ${:.2}", bet, self.bankroll);
         }
       }
 
-      if state.splitting && state.split_hand.blackjack_sum() <= 21 {
+      if self.splitting && self.split_hand.blackjack_sum() <= 21 {
         print!("Second hand result: ");
 
-        if state.dealer_hand.blackjack_sum() > 21 {
-          let bet = state.split_bet;
-          state.win_split_bet();
-          println!("DEALER BUST! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
-        } else if state.dealer_hand.blackjack_sum() == state.split_hand.blackjack_sum() {
-          state.push_split_bet();
+        if self.dealer_hand.blackjack_sum() > 21 {
+          let bet = self.split_bet;
+          self.win_split_bet();
+          println!("DEALER BUST! You receive ${:.2}. You now have ${:.2}", bet, self.bankroll);
+        } else if self.dealer_hand.blackjack_sum() == self.split_hand.blackjack_sum() {
+          self.push_split_bet();
           println!("PUSH! Nobody wins.");
-        } else if state.dealer_hand.blackjack_sum() > state.split_hand.blackjack_sum() {
-          let bet = state.split_bet;
-          state.lose_split_bet();
-          println!("HOUSE WINS! You lose ${:.2}. You now have ${:.2}", bet, state.bankroll);
-        } else if state.split_hand.is_natural_blackjack() {
-          state.win_split_bet_blackjack();
-          let payout = state.split_blackjack_payout();
-          println!("BLACKJACK! You receive ${:.2}. You now have ${:.2}", payout, state.bankroll);
+        } else if self.dealer_hand.blackjack_sum() > self.split_hand.blackjack_sum() {
+          let bet = self.split_bet;
+          self.lose_split_bet();
+          println!("HOUSE WINS! You lose ${:.2}. You now have ${:.2}", bet, self.bankroll);
+        } else if self.split_hand.is_natural_blackjack() {
+          self.win_split_bet_blackjack();
+          let payout = self.split_blackjack_payout();
+          println!("BLACKJACK! You receive ${:.2}. You now have ${:.2}", payout, self.bankroll);
         } else {
-          let bet = state.split_bet;
-          state.win_split_bet();
-          println!("YOU WIN! You receive ${:.2}. You now have ${:.2}", bet, state.bankroll);
+          let bet = self.split_bet;
+          self.win_split_bet();
+          println!("YOU WIN! You receive ${:.2}. You now have ${:.2}", bet, self.bankroll);
         }
       }
 
-      if state.dealer_hand.is_natural_blackjack() && !state.insurance_bet.is_zero() {
-        let insurance_payout = state.insurance_payout();
-        state.win_insurance();
-        println!("DEALER BLACKJACK! Your insurance bet pays out ${:.2}. You now have ${:.2}.", insurance_payout, state.bankroll);
+      if self.dealer_hand.is_natural_blackjack() && !self.insurance_bet.is_zero() {
+        let insurance_payout = self.insurance_payout();
+        self.win_insurance();
+        println!("DEALER BLACKJACK! Your insurance bet pays out ${:.2}. You now have ${:.2}.", insurance_payout, self.bankroll);
       }
     }
 
-    if state.bankroll.is_zero() {
-      state.add_bankroll(state.config.mister_greens_gift);
+    if self.bankroll.is_zero() {
+      self.add_bankroll(self.config.mister_greens_gift);
       println!("* Unfortunately, you've run out of money.");
       println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
       println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
       println!("* \"Oh, and always remember the name: MISTER GREEN!\"");
-      println!("* The man hands you ${:.2}.", state.config.mister_greens_gift);
+      println!("* The man hands you ${:.2}.", self.config.mister_greens_gift);
     }
 
-    state.save();
+    self.save();
     Ok(())
   }
 }

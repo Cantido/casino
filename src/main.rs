@@ -45,7 +45,8 @@ fn main() -> Result<()> {
       println!("Most money in the bank..{:.>15.2}", stats.biggest_bankroll);
     },
     Some(Commands::Blackjack) => {
-      Casino::play_blackjack()?;
+      let mut state = Casino::from_filesystem()?;
+      state.play_blackjack()?;
     },
     Some(Commands::Shuffle) => {
       let mut state = Casino::from_filesystem()?;
@@ -69,7 +70,10 @@ fn main() -> Result<()> {
       let ans = Select::new("What would you like to play?", options).prompt();
 
       match ans {
-        Ok("Blackjack") => Casino::play_blackjack()?,
+        Ok("Blackjack") => {
+          let mut state = Casino::from_filesystem()?;
+          state.play_blackjack()?
+        }
         Ok(_) => panic!("Unknown option"),
         Err(_) => panic!("Error fetching your choice"),
       }
