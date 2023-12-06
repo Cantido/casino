@@ -1,5 +1,9 @@
 # casino
 
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/Cantido/casino/rust.yml)
+![Crates.io](https://img.shields.io/crates/d/casino)
+![GitHub License](https://img.shields.io/github/license/Cantido/casino)
+
 An entire casino built into your terminal.
 
 ## Installation
