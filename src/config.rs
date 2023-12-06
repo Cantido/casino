@@ -39,6 +39,8 @@ impl Config {
     let path = Self::default_path();
 
     if let Ok(config) = Self::from_path(&path) {
+      // Save the config to update it to latest structure
+      config.save(&path)?;
       return Ok(config)
     } else {
       let config = Self::default();

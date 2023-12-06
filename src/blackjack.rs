@@ -1,6 +1,7 @@
 use std::fs;
 use anyhow::Result;
 use inquire::{Confirm, Select, Text};
+use num::rational::Ratio;
 use rust_decimal::prelude::*;
 use serde::{Deserialize, Serialize};
 use spinners::{Spinner, Spinners};
@@ -214,23 +215,23 @@ impl Casino {
   }
 
   fn win_payout(&self) -> Decimal {
-    self.bet
+    self.config.blackjack.payout(self.bet)
   }
 
   fn win_split_payout(&self) -> Decimal {
-    self.split_bet
+    self.config.blackjack.payout(self.split_bet)
   }
 
   fn blackjack_payout(&self) -> Decimal {
-    self.bet * Decimal::new(15, 1).round_dp(2)
+    self.config.blackjack.blackjack_payout(self.bet)
   }
 
   fn split_blackjack_payout(&self) -> Decimal {
-    self.split_bet * Decimal::new(15, 1).round_dp(2)
+    self.config.blackjack.blackjack_payout(self.split_bet)
   }
 
   fn insurance_payout(&self) -> Decimal {
-    self.insurance_bet * Decimal::new(2, 0)
+    self.config.blackjack.insurance_payout(self.split_bet)
   }
 
   pub fn save(&self) {
@@ -510,6 +511,15 @@ pub struct BlackjackConfig {
 
   #[serde(default = "BlackjackConfig::default_shuffle_penetration")]
   pub shuffle_at_penetration: f32,
+
+  #[serde(default = "BlackjackConfig::default_payout_ratio")]
+  pub payout_ratio: Ratio<u8>,
+
+  #[serde(default = "BlackjackConfig::default_blackjack_payout_ratio")]
+  pub blackjack_payout_ratio: Ratio<u8>,
+
+  #[serde(default = "BlackjackConfig::default_insurance_payout_ratio")]
+  pub insurance_payout_ratio: Ratio<u8>,
 }
 
 impl Default for BlackjackConfig {
@@ -517,17 +527,51 @@ impl Default for BlackjackConfig {
     Self {
       shoe_count: Self::default_shoe_count(),
       shuffle_at_penetration: Self::default_shuffle_penetration(),
+      payout_ratio: Self::default_payout_ratio(),
+      blackjack_payout_ratio: Self::default_blackjack_payout_ratio(),
+      insurance_payout_ratio: Self::default_insurance_payout_ratio(),
     }
   }
 }
 
 impl BlackjackConfig {
+  fn payout(&self, bet: Decimal) -> Decimal {
+    Self::mul_money(bet, self.payout_ratio)
+  }
+
+  fn blackjack_payout(&self, bet: Decimal) -> Decimal {
+    Self::mul_money(bet, self.blackjack_payout_ratio)
+  }
+
+  fn insurance_payout(&self, bet: Decimal) -> Decimal {
+    Self::mul_money(bet, self.insurance_payout_ratio)
+  }
+
   fn default_shoe_count() -> u8 {
     4
   }
 
   fn default_shuffle_penetration() -> f32 {
     0.75
+  }
+
+  fn default_payout_ratio() -> Ratio<u8> {
+    Ratio::new(1, 1)
+  }
+
+  fn default_blackjack_payout_ratio() -> Ratio<u8> {
+    Ratio::new(3, 2)
+  }
+
+  fn default_insurance_payout_ratio() -> Ratio<u8> {
+    Ratio::new(2, 1)
+  }
+
+  fn mul_money(amount: Decimal, ratio: Ratio<u8>) -> Decimal {
+    let numer = Decimal::new(i64::from(*ratio.numer()), 0);
+    let denom = Decimal::new(i64::from(*ratio.denom()), 0);
+
+    (amount * numer / denom).round_dp(2)
   }
 }
 
