@@ -2,17 +2,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use anyhow::Result;
 use directories::{ProjectDirs};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use crate::blackjack::BlackjackConfig;
+use crate::money::Money;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
   #[serde(default)]
   pub blackjack: BlackjackConfig,
-  #[serde(with = "rust_decimal::serde::str")]
   #[serde(default = "Config::default_greens_gift")]
-  pub mister_greens_gift: Decimal,
+  pub mister_greens_gift: Money,
   #[serde(default = "Config::default_save_path")]
   pub save_path: PathBuf,
   #[serde(default = "Config::default_stats_path")]
@@ -50,8 +49,8 @@ impl Config {
     }
   }
 
-  fn default_greens_gift() -> Decimal {
-    Decimal::new(1_000, 0)
+  fn default_greens_gift() -> Money {
+    Money::from_major(1_000)
   }
 
   fn default_save_path() -> PathBuf {
