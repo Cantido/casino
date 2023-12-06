@@ -1,17 +1,15 @@
 use std::fs;
-use std::path::{Path, PathBuf};
 use anyhow::Result;
 use inquire::{Confirm, Select, Text};
 use rust_decimal::prelude::*;
 use clap::{Parser, Subcommand};
-use directories::{ProjectDirs};
 use serde::{Deserialize, Serialize};
 use spinners::{Spinner, Spinners};
 use std::thread::sleep;
 use std::time::Duration;
 use casino::cards::{Card, Hand, Value, shoe};
-use casino::blackjack::BlackjackConfig;
 use casino::statistics::BlackjackStatistics;
+use casino::config::Config;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -32,80 +30,6 @@ enum Commands {
   Balance,
   /// Clears game state and statistics
   Reset,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-struct Config {
-  #[serde(default)]
-  blackjack: BlackjackConfig,
-  #[serde(with = "rust_decimal::serde::str")]
-  #[serde(default = "Config::default_greens_gift")]
-  mister_greens_gift: Decimal,
-  #[serde(default = "Config::default_save_path")]
-  save_path: PathBuf,
-  #[serde(default = "Config::default_stats_path")]
-  stats_path: PathBuf,
-}
-
-impl Default for Config {
-  fn default() -> Self {
-    Self {
-      blackjack: Default::default(),
-      mister_greens_gift: Self::default_greens_gift(),
-      save_path: Self::default_save_path(),
-      stats_path: Self::default_stats_path(),
-    }
-  }
-}
-
-impl Config {
-  fn default_path() -> PathBuf {
-    let project_dirs = Self::project_dirs();
-    let config_dir = project_dirs.config_dir();
-    config_dir.join("config.toml")
-  }
-
-  fn from_path(config_path: &Path) -> Result<Self> {
-    let config_string = fs::read_to_string(&config_path)?;
-    Ok(toml::from_str(&config_string)?)
-  }
-
-  fn save(&self, config_path: &Path) -> Result<()> {
-    Ok(fs::write(&config_path, toml::to_string(&self)?)?)
-  }
-
-  fn init_get() -> Result<Self> {
-    let path = Self::default_path();
-
-    if let Ok(config) = Self::from_path(&path) {
-      return Ok(config)
-    } else {
-      let config = Self::default();
-      config.save(&path)?;
-
-      return Ok(config)
-    }
-  }
-
-  fn default_greens_gift() -> Decimal {
-    Decimal::new(1_000, 0)
-  }
-
-  fn default_save_path() -> PathBuf {
-    let project_dirs = Self::project_dirs();
-    let data_dir = project_dirs.data_dir();
-    data_dir.join("state.toml")
-  }
-
-  fn default_stats_path() -> PathBuf {
-    let project_dirs = Self::project_dirs();
-    let data_dir = project_dirs.data_dir();
-    data_dir.join("stats.toml")
-  }
-
-  fn project_dirs() -> ProjectDirs {
-    ProjectDirs::from("dev", "Cosmicrose", "casino").unwrap()
-  }
 }
 
 #[derive(Default)]
