@@ -43,9 +43,10 @@ impl From<Money> for Decimal {
 }
 
 impl fmt::Display for Money {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "${:.2}", self.0)
-    }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let string = format!("${:.2}", self.0);
+    f.pad_integral(true, "", &string)
+  }
 }
 
 impl FromStr for Money {
