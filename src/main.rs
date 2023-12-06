@@ -10,6 +10,7 @@ use spinners::{Spinner, Spinners};
 use std::thread::sleep;
 use std::time::Duration;
 use casino::cards::{Card, Hand, Value, shoe};
+use casino::blackjack::BlackjackConfig;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -34,10 +35,8 @@ enum Commands {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Config {
-  #[serde(default = "Config::default_shoe_count")]
-  shoe_count: u8,
-  #[serde(default = "Config::default_shuffle_penetration")]
-  shuffle_at_penetration: f32,
+  #[serde(default)]
+  blackjack: BlackjackConfig,
   #[serde(with = "rust_decimal::serde::str")]
   #[serde(default = "Config::default_greens_gift")]
   mister_greens_gift: Decimal,
@@ -50,8 +49,7 @@ struct Config {
 impl Default for Config {
   fn default() -> Self {
     Self {
-      shoe_count: Self::default_shoe_count(),
-      shuffle_at_penetration: Self::default_shuffle_penetration(),
+      blackjack: Default::default(),
       mister_greens_gift: Self::default_greens_gift(),
       save_path: Self::default_save_path(),
       stats_path: Self::default_stats_path(),
@@ -86,14 +84,6 @@ impl Config {
 
       return Ok(config)
     }
-  }
-
-  fn default_shoe_count() -> u8 {
-    4
-  }
-
-  fn default_shuffle_penetration() -> f32 {
-    0.75
   }
 
   fn default_greens_gift() -> Decimal {
@@ -188,7 +178,7 @@ impl Casino {
     Self {
       config: config.clone(),
       bankroll: config.mister_greens_gift,
-      shoe: shoe(config.shoe_count),
+      shoe: shoe(config.blackjack.shoe_count),
       dealer_hand: Hand::new_hidden(1),
       ..Default::default()
     }
@@ -224,8 +214,8 @@ impl Casino {
   fn draw_card(&mut self) -> Card {
     let card = self.shoe.pop().unwrap();
 
-    let threshold_fraction: f32 = 1f32 - self.config.shuffle_at_penetration;
-    let starting_shoe_size: f32 = f32::from(self.config.shoe_count) * 52f32;
+    let threshold_fraction: f32 = 1f32 - self.config.blackjack.shuffle_at_penetration;
+    let starting_shoe_size: f32 = f32::from(self.config.blackjack.shoe_count) * 52f32;
 
     let low_card_threshold: usize = (starting_shoe_size * threshold_fraction) as usize;
 
@@ -237,7 +227,7 @@ impl Casino {
   }
 
   fn shuffle_shoe(&mut self) {
-    self.shoe = shoe(self.config.shoe_count);
+    self.shoe = shoe(self.config.blackjack.shoe_count);
   }
 
   fn card_to_dealer(&mut self) {
