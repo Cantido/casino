@@ -11,6 +11,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use casino::cards::{Card, Hand, Value, shoe};
 use casino::blackjack::BlackjackConfig;
+use casino::statistics::BlackjackStatistics;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -107,54 +108,6 @@ impl Config {
   }
 }
 
-#[derive(Clone, Default, Deserialize, Serialize)]
-struct Statistics {
-  hands_won: u32,
-  hands_lost: u32,
-  hands_push: u32,
-  #[serde(with = "rust_decimal::serde::str")]
-  money_won: Decimal,
-  #[serde(with = "rust_decimal::serde::str")]
-  money_lost: Decimal,
-  #[serde(with = "rust_decimal::serde::str")]
-  biggest_win: Decimal,
-  #[serde(with = "rust_decimal::serde::str")]
-  biggest_loss: Decimal,
-  #[serde(with = "rust_decimal::serde::str")]
-  biggest_bankroll: Decimal,
-  times_bankrupted: u32,
-}
-
-impl Statistics {
-  fn record_win(&mut self, amount: Decimal) {
-    self.hands_won += 1;
-    self.money_won += amount;
-    if amount > self.biggest_win {
-      self.biggest_win = amount;
-    }
-  }
-
-  fn record_loss(&mut self, amount: Decimal) {
-    self.hands_lost += 1;
-    self.money_lost += amount;
-    if amount > self.biggest_loss {
-      self.biggest_loss = amount;
-    }
-  }
-
-  fn record_push(&mut self) {
-    self.hands_push += 1;
-  }
-
-  fn update_bankroll(&mut self, amount: Decimal) {
-    if amount > self.biggest_bankroll {
-      self.biggest_bankroll = amount;
-    } else if amount.is_zero() {
-      self.times_bankrupted += 1;
-    }
-  }
-}
-
 #[derive(Default)]
 struct Casino {
   config: Config,
@@ -167,7 +120,7 @@ struct Casino {
   standing_split: bool,
   doubling_down: bool,
   splitting: bool,
-  stats: Statistics,
+  stats: BlackjackStatistics,
   dealer_hand: Hand,
   player_hand: Hand,
   split_hand: Hand,
@@ -205,7 +158,7 @@ impl Casino {
 
   fn load_stats(&mut self) {
     if let Ok(stats_string) = fs::read_to_string(&self.config.stats_path) {
-      let stats: Statistics = toml::from_str(&stats_string).unwrap();
+      let stats: BlackjackStatistics = toml::from_str(&stats_string).unwrap();
 
       self.stats = stats;
     };
