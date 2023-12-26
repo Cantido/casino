@@ -72,12 +72,7 @@ impl Casino {
   fn draw_card(&mut self) -> Card {
     let card = self.shoe.pop().unwrap();
 
-    let threshold_fraction: f32 = 1f32 - self.config.blackjack.shuffle_at_penetration;
-    let starting_shoe_size: f32 = f32::from(self.config.blackjack.shoe_count) * 52f32;
-
-    let low_card_threshold: usize = (starting_shoe_size * threshold_fraction) as usize;
-
-    if self.shoe.len() < low_card_threshold {
+    if self.shoe.len() < self.config.blackjack.shuffle_shoe_threshold_count() {
       self.shuffle_shoe();
     }
 
@@ -537,6 +532,13 @@ impl Default for BlackjackConfig {
 }
 
 impl BlackjackConfig {
+  pub fn shuffle_shoe_threshold_count(&self) -> usize {
+    let threshold_fraction = 1f32 - self.shuffle_at_penetration;
+    let starting_shoe_size = self.shoe_count as usize * 52;
+
+    (starting_shoe_size as f32 * threshold_fraction) as usize
+  }
+
   fn payout(&self, bet: Money) -> Money {
     bet * self.payout_ratio
   }
