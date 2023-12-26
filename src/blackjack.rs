@@ -90,6 +90,26 @@ impl fmt::Display for Hand {
       }
     }
 
+    hand_str.push_str(" (");
+
+    for (i, card) in self.cards.iter().enumerate() {
+      if i < self.hidden_count {
+        hand_str.push_str("?");
+      } else {
+        hand_str.push_str(&card.blackjack_value().to_string());
+      }
+
+      if i < self.cards.len() - 1 {
+        hand_str.push_str(" + ");
+      }
+    }
+
+    if self.hidden_count > 0 {
+      hand_str.push_str(" = ?)");
+    } else {
+      hand_str.push_str(&format!(" = {})", self.blackjack_sum()));
+    }
+
     write!(f, "{}", hand_str)
   }
 }
@@ -350,7 +370,7 @@ impl Casino {
     self.card_to_player();
 
     println!("Dealer's hand: {}", self.dealer_hand);
-    println!("Your hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
+    println!("Your hand: {}", self.player_hand);
 
     if self.can_place_insurance_bet() {
       let ans = Confirm::new("Insurance?").with_default(false).prompt();
@@ -398,7 +418,7 @@ impl Casino {
 
           if self.splitting && current_hand == 0 {
             self.card_to_player();
-            println!("Your first hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
+            println!("Your first hand: {}", self.player_hand);
 
             if self.player_hand.blackjack_sum() > 21 {
               let bet = self.player_hand.bet;
@@ -408,7 +428,7 @@ impl Casino {
             }
           } else if self.splitting && current_hand == 1 {
             self.card_to_split();
-            println!("Your second hand: {} ({})", self.split_hand, self.split_hand.blackjack_sum());
+            println!("Your second hand: {}", self.split_hand);
 
             if self.split_hand.blackjack_sum() > 21 {
               let bet = self.split_hand.bet;
@@ -417,7 +437,7 @@ impl Casino {
             }
           } else {
             self.card_to_player();
-            println!("Your hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
+            println!("Your hand: {}", self.player_hand);
 
             if self.player_hand.blackjack_sum() > 21 {
               let bet = self.player_hand.bet;
@@ -435,7 +455,7 @@ impl Casino {
           sp.stop_with_message("* The dealer hands you another card.".into());
 
           self.card_to_player();
-          println!("Your hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
+          println!("Your hand: {}", self.player_hand);
 
           if self.player_hand.blackjack_sum() > 21 {
             let bet = self.player_hand.bet;
@@ -455,8 +475,8 @@ impl Casino {
           self.card_to_player();
           self.card_to_split();
 
-          println!("Your first hand: {} ({})", self.player_hand, self.player_hand.blackjack_sum());
-          println!("Your second hand: {} ({})", self.split_hand, self.split_hand.blackjack_sum());
+          println!("Your first hand: {}", self.player_hand);
+          println!("Your second hand: {}", self.split_hand);
 
           if self.player_hand.blackjack_sum() > 21 {
             let bet = self.player_hand.bet;
@@ -489,7 +509,7 @@ impl Casino {
       sp.stop_with_message("* Hole card revealed!".into());
 
       self.dealer_hand.hidden_count = 0;
-      println!("Dealer's hand: {} ({})", self.dealer_hand, self.dealer_hand.blackjack_sum());
+      println!("Dealer's hand: {}", self.dealer_hand);
 
       while self.dealer_hand.blackjack_sum() < 17 {
         let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
@@ -497,7 +517,7 @@ impl Casino {
         sp.stop_with_message("* The dealer issues themself another card.".into());
 
         self.card_to_dealer();
-        println!("Dealer's hand: {} ({})", self.dealer_hand, self.dealer_hand.blackjack_sum());
+        println!("Dealer's hand: {}", self.dealer_hand);
       }
 
       let mut sp = Spinner::new(Spinners::Dots, "Determining outcome...".into());
