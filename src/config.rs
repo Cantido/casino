@@ -31,6 +31,7 @@ impl Config {
   }
 
   pub fn save(&self, config_path: &Path) -> Result<()> {
+    fs::create_dir_all(config_path.parent().expect("Couldn't create save dir!"));
     Ok(fs::write(&config_path, toml::to_string(&self)?)?)
   }
 

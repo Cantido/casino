@@ -41,7 +41,7 @@ impl Casino {
   }
 
   pub fn from_filesystem() -> Result<Self> {
-    let config = Config::init_get()?;
+    let config = Config::init_get().expect("Couldn't init config file");
     let mut casino = Self::new(config);
 
     casino.load_state();
@@ -56,6 +56,8 @@ impl Casino {
 
       self.bankroll = state.bankroll;
       self.shoe = state.shoe.clone();
+    } else {
+      println!("Couldn't read save file!");
     }
   }
 
@@ -236,13 +238,13 @@ impl Casino {
 
   pub fn save(&self) {
     let state = CasinoState { bankroll: self.bankroll, shoe: self.shoe.clone() };
-    let save_dir = self.config.save_path.parent().unwrap();
+    let save_dir = self.config.save_path.parent().expect("Couldn't find save directory!");
     fs::create_dir_all(save_dir).expect("Couldn't create save directory!");
-    fs::write(&self.config.save_path, toml::to_string(&state).unwrap()).unwrap();
+    fs::write(&self.config.save_path, toml::to_string(&state).expect("Couldn't serialize save data!")).expect("Couldn't write save data to save directory!");
 
-    let stats_dir = self.config.stats_path.parent().unwrap();
+    let stats_dir = self.config.stats_path.parent().expect("Couldn't access stats path!");
     fs::create_dir_all(stats_dir).expect("Couldn't create stats directory!");
-    fs::write(&self.config.stats_path, toml::to_string(&self.stats).unwrap()).unwrap();
+    fs::write(&self.config.stats_path, toml::to_string(&self.stats).unwrap()).expect("Couldn't write to stats file!");
   }
 
   pub fn play_blackjack(&mut self) -> Result<()> {
