@@ -450,8 +450,8 @@ impl Casino {
           self.lose_bet();
           println!("HOUSE WINS! You lose {}. You now have {}", bet, self.bankroll);
         } else if self.player_hand.is_natural_blackjack() {
-          self.win_bet_blackjack();
           let payout = self.blackjack_payout();
+          self.win_bet_blackjack();
           println!("BLACKJACK! You receive {}. You now have {}", payout, self.bankroll);
         } else {
           let bet = self.bet;
@@ -475,8 +475,8 @@ impl Casino {
           self.lose_split_bet();
           println!("HOUSE WINS! You lose {}. You now have {}", bet, self.bankroll);
         } else if self.split_hand.is_natural_blackjack() {
-          self.win_split_bet_blackjack();
           let payout = self.split_blackjack_payout();
+          self.win_split_bet_blackjack();
           println!("BLACKJACK! You receive {}. You now have {}", payout, self.bankroll);
         } else {
           let bet = self.split_bet;

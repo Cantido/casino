@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use directories::{ProjectDirs};
 use serde::{Deserialize, Serialize};
 use crate::blackjack::BlackjackConfig;
@@ -31,7 +31,7 @@ impl Config {
   }
 
   pub fn save(&self, config_path: &Path) -> Result<()> {
-    fs::create_dir_all(config_path.parent().expect("Couldn't create save dir!"));
+    fs::create_dir_all(config_path.parent().ok_or(anyhow!("Configuraton file path doesn't have a parent we can create!"))?).expect("Couldn't create save dir!");
     Ok(fs::write(&config_path, toml::to_string(&self)?)?)
   }
 

@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     },
     Some(Commands::Balance) => {
       let state = Casino::from_filesystem()?;
-      println!("${:.2}", state.bankroll);
+      println!("{}", state.bankroll);
     }
     Some(Commands::Reset) => {
       let cfg_path = Config::default_path();
