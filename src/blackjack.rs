@@ -55,6 +55,15 @@ impl Hand {
 
     return sum
   }
+
+  pub fn split(&mut self) -> Hand {
+    let moved_card = self.cards.pop().expect("Hand needs cards to split!");
+
+    let mut other_hand = Hand::default();
+    other_hand.push(moved_card);
+
+    other_hand
+  }
 }
 
 impl fmt::Display for Hand {
@@ -208,8 +217,7 @@ impl Casino {
   }
 
   fn split(&mut self) {
-    let moved_card = self.player_hand.cards.pop().unwrap();
-    self.split_hand.push(moved_card);
+    self.split_hand = self.player_hand.split();
 
     self.splitting = true;
     self.split_bet += self.bet;
