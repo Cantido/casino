@@ -321,23 +321,23 @@ impl Casino {
   }
 
   fn win_payout(&self) -> Money {
-    self.config.blackjack.payout(self.player_hand.bet)
+    self.player_hand.bet * self.config.blackjack.payout_ratio
   }
 
   fn win_split_payout(&self) -> Money {
-    self.config.blackjack.payout(self.split_hand.bet)
+    self.split_hand.bet * self.config.blackjack.payout_ratio
   }
 
   fn blackjack_payout(&self) -> Money {
-    self.config.blackjack.blackjack_payout(self.player_hand.bet)
+    self.player_hand.bet * self.config.blackjack.blackjack_payout_ratio
   }
 
   fn split_blackjack_payout(&self) -> Money {
-    self.config.blackjack.blackjack_payout(self.split_hand.bet)
+    self.split_hand.bet * self.config.blackjack.blackjack_payout_ratio
   }
 
   fn insurance_payout(&self) -> Money {
-    self.config.blackjack.insurance_payout(self.player_hand.bet)
+    self.player_hand.bet * self.config.blackjack.insurance_payout_ratio
   }
 
   pub fn save(&self) {
@@ -646,18 +646,6 @@ impl BlackjackConfig {
     let starting_shoe_size = self.shoe_count as usize * 52;
 
     (starting_shoe_size as f32 * threshold_fraction) as usize
-  }
-
-  fn payout(&self, bet: Money) -> Money {
-    bet * self.payout_ratio
-  }
-
-  fn blackjack_payout(&self, bet: Money) -> Money {
-    bet * self.blackjack_payout_ratio
-  }
-
-  fn insurance_payout(&self, bet: Money) -> Money {
-    bet * self.insurance_payout_ratio
   }
 
   fn default_shoe_count() -> u8 {
