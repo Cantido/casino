@@ -140,7 +140,7 @@ pub struct Casino {
   splitting: bool,
   pub stats: BlackjackStatistics,
   dealer_hand: Hand,
-  player_hand: Hand,
+  player_hands: Vec<Hand>,
   split_hand: Hand,
 }
 
@@ -205,7 +205,7 @@ impl Casino {
 
   fn card_to_player(&mut self) {
     let card = self.draw_card();
-    self.player_hand.push(card);
+    self.player_hands[0].push(card);
   }
 
   fn card_to_split(&mut self) {
@@ -223,50 +223,50 @@ impl Casino {
   }
 
   fn increase_bet(&mut self, amount: Money) {
-    self.player_hand.bet += amount;
+    self.player_hands[0].bet += amount;
     self.bankroll -= amount;
   }
 
   fn can_place_insurance_bet(&self) -> bool {
     match self.dealer_hand.face_card().value {
-      Value::Ace => self.player_hand.bet <= self.bankroll,
+      Value::Ace => self.player_hands[0].bet <= self.bankroll,
       _ => false,
     }
   }
 
   fn place_insurance_bet(&mut self) {
-    let bet_amount = self.player_hand.bet / 2;
+    let bet_amount = self.player_hands[0].bet / 2;
     self.insurance_bet += bet_amount;
     self.bankroll -= bet_amount;
   }
 
   fn can_double_down(&self) -> bool {
-    self.player_hand.can_double_down() &&
-      self.player_hand.bet <= self.bankroll
+    self.player_hands[0].can_double_down() &&
+      self.player_hands[0].bet <= self.bankroll
   }
 
   fn double_down(&mut self) {
-    self.bankroll -= self.player_hand.bet;
-    self.player_hand.double_down();
+    self.bankroll -= self.player_hands[0].bet;
+    self.player_hands[0].double_down();
   }
 
   fn can_split(&self) -> bool {
     !self.splitting &&
-    self.can_increase_bet(self.player_hand.bet) &&
-    self.player_hand.can_split()
+    self.can_increase_bet(self.player_hands[0].bet) &&
+    self.player_hands[0].can_split()
   }
 
   fn split(&mut self) {
-    self.split_hand = self.player_hand.split();
+    self.split_hand = self.player_hands[0].split();
 
     self.splitting = true;
     self.bankroll -= self.split_hand.bet;
   }
 
   fn lose_bet(&mut self) {
-    self.stats.record_loss(self.player_hand.bet);
+    self.stats.record_loss(self.player_hands[0].bet);
     self.stats.update_bankroll(self.bankroll);
-    self.player_hand.bet = Money::ZERO;
+    self.player_hands[0].bet = Money::ZERO;
   }
 
   fn lose_split_bet(&mut self) {
@@ -277,9 +277,9 @@ impl Casino {
 
   fn win_bet(&mut self) {
     self.stats.record_win(self.win_payout());
-    self.bankroll += self.player_hand.bet + self.win_payout();
+    self.bankroll += self.player_hands[0].bet + self.win_payout();
     self.stats.update_bankroll(self.bankroll);
-    self.player_hand.bet = Money::ZERO;
+    self.player_hands[0].bet = Money::ZERO;
   }
 
   fn win_split_bet(&mut self) {
@@ -291,9 +291,9 @@ impl Casino {
 
   fn win_bet_blackjack(&mut self) {
     self.stats.record_win(self.blackjack_payout());
-    self.bankroll += self.player_hand.bet + self.blackjack_payout();
+    self.bankroll += self.player_hands[0].bet + self.blackjack_payout();
     self.stats.update_bankroll(self.bankroll);
-    self.player_hand.bet = Money::ZERO;
+    self.player_hands[0].bet = Money::ZERO;
   }
   fn win_split_bet_blackjack(&mut self) {
     self.stats.record_win(self.split_blackjack_payout());
@@ -303,15 +303,15 @@ impl Casino {
   }
 
   fn win_insurance(&mut self) {
-    self.bankroll += self.player_hand.bet + self.insurance_payout();
+    self.bankroll += self.player_hands[0].bet + self.insurance_payout();
     self.stats.update_bankroll(self.bankroll);
     self.insurance_bet = Money::ZERO;
   }
 
   fn push_bet(&mut self) {
     self.stats.record_push();
-    self.bankroll += self.player_hand.bet;
-    self.player_hand.bet = Money::ZERO;
+    self.bankroll += self.player_hands[0].bet;
+    self.player_hands[0].bet = Money::ZERO;
   }
 
   fn push_split_bet(&mut self) {
@@ -321,7 +321,7 @@ impl Casino {
   }
 
   fn win_payout(&self) -> Money {
-    self.player_hand.bet * self.config.blackjack.payout_ratio
+    self.player_hands[0].bet * self.config.blackjack.payout_ratio
   }
 
   fn win_split_payout(&self) -> Money {
@@ -329,7 +329,7 @@ impl Casino {
   }
 
   fn blackjack_payout(&self) -> Money {
-    self.player_hand.bet * self.config.blackjack.blackjack_payout_ratio
+    self.player_hands[0].bet * self.config.blackjack.blackjack_payout_ratio
   }
 
   fn split_blackjack_payout(&self) -> Money {
@@ -337,7 +337,7 @@ impl Casino {
   }
 
   fn insurance_payout(&self) -> Money {
-    self.player_hand.bet * self.config.blackjack.insurance_payout_ratio
+    self.player_hands[0].bet * self.config.blackjack.insurance_payout_ratio
   }
 
   pub fn save(&self) {
@@ -371,7 +371,7 @@ impl Casino {
       }
     }
 
-    println!("Betting {}", self.player_hand.bet);
+    println!("Betting {}", self.player_hands[0].bet);
 
     let mut sp = Spinner::new(Spinners::Dots, "Dealing cards...".into());
     sleep(Duration::from_millis(1_500));
@@ -383,7 +383,7 @@ impl Casino {
     self.card_to_player();
 
     println!("Dealer's hand: {}", self.dealer_hand);
-    println!("Your hand: {}", self.player_hand);
+    println!("Your hand: {}", self.player_hands[0]);
 
     if self.can_place_insurance_bet() {
       let ans = Confirm::new("Insurance?").with_default(false).prompt();
@@ -400,7 +400,7 @@ impl Casino {
 
     let mut current_hand = 0;
 
-    while !(self.player_hand.is_finished()) || (self.splitting && !(self.split_hand.is_finished())) {
+    while !(self.player_hands[0].is_finished()) || (self.splitting && !(self.split_hand.is_finished())) {
 
       let mut options = vec!["Hit", "Stand"];
 
@@ -431,10 +431,10 @@ impl Casino {
 
           if self.splitting && current_hand == 0 {
             self.card_to_player();
-            println!("Your first hand: {}", self.player_hand);
+            println!("Your first hand: {}", self.player_hands[0]);
 
-            if self.player_hand.blackjack_sum() > 21 {
-              let bet = self.player_hand.bet;
+            if self.player_hands[0].blackjack_sum() > 21 {
+              let bet = self.player_hands[0].bet;
               self.lose_bet();
               current_hand = 1;
               println!("FIRST HAND BUST! You lose {}. You now have {}", bet, self.bankroll);
@@ -450,10 +450,10 @@ impl Casino {
             }
           } else {
             self.card_to_player();
-            println!("Your hand: {}", self.player_hand);
+            println!("Your hand: {}", self.player_hands[0]);
 
-            if self.player_hand.blackjack_sum() > 21 {
-              let bet = self.player_hand.bet;
+            if self.player_hands[0].blackjack_sum() > 21 {
+              let bet = self.player_hands[0].bet;
               self.lose_bet();
               println!("BUST! You lose {}. You now have {}", bet, self.bankroll);
             }
@@ -461,21 +461,21 @@ impl Casino {
         },
         Ok("Double") => {
           self.double_down();
-          println!("Your bet is now {}, and you will only receive one more card.", self.player_hand.bet);
+          println!("Your bet is now {}, and you will only receive one more card.", self.player_hands[0].bet);
 
           let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
           sleep(Duration::from_millis(1_000));
           sp.stop_with_message("* The dealer hands you another card.".into());
 
           self.card_to_player();
-          println!("Your hand: {}", self.player_hand);
+          println!("Your hand: {}", self.player_hands[0]);
 
-          if self.player_hand.blackjack_sum() > 21 {
-            let bet = self.player_hand.bet;
+          if self.player_hands[0].blackjack_sum() > 21 {
+            let bet = self.player_hands[0].bet;
             self.lose_bet();
             println!("BUST! You lose {}. You now have {}", bet, self.bankroll);
           }
-          self.player_hand.standing = true;
+          self.player_hands[0].standing = true;
         },
         Ok("Split") => {
           self.split();
@@ -488,11 +488,11 @@ impl Casino {
           self.card_to_player();
           self.card_to_split();
 
-          println!("Your first hand: {}", self.player_hand);
+          println!("Your first hand: {}", self.player_hands[0]);
           println!("Your second hand: {}", self.split_hand);
 
-          if self.player_hand.blackjack_sum() > 21 {
-            let bet = self.player_hand.bet;
+          if self.player_hands[0].blackjack_sum() > 21 {
+            let bet = self.player_hands[0].bet;
             self.lose_bet();
             println!("FIRST HAND BUST! You lose {}. You now have {}", bet, self.bankroll);
           }
@@ -505,7 +505,7 @@ impl Casino {
         },
         Ok("Stand") => {
           if current_hand == 0 {
-            self.player_hand.standing = true;
+            self.player_hands[0].standing = true;
             current_hand = 1;
           } else if current_hand == 1 {
             self.split_hand.standing = true;
@@ -516,7 +516,7 @@ impl Casino {
       }
     }
 
-    if self.player_hand.blackjack_sum() <= 21 || (self.splitting && self.split_hand.blackjack_sum() <= 21) {
+    if self.player_hands[0].blackjack_sum() <= 21 || (self.splitting && self.split_hand.blackjack_sum() <= 21) {
       let mut sp = Spinner::new(Spinners::Dots, "Revealing the hole card...".into());
       sleep(Duration::from_millis(1_000));
       sp.stop_with_message("* Hole card revealed!".into());
@@ -537,28 +537,28 @@ impl Casino {
       sleep(Duration::from_millis(1_000));
       sp.stop_with_message("* The hand is finished!".into());
 
-      if self.player_hand.blackjack_sum() <= 21 {
+      if self.player_hands[0].blackjack_sum() <= 21 {
         if self.splitting {
           print!("First hand result: ");
         }
 
         if self.dealer_hand.blackjack_sum() > 21 {
-          let bet = self.player_hand.bet;
+          let bet = self.player_hands[0].bet;
           self.win_bet();
           println!("DEALER BUST! You receive {}. You now have {}", bet, self.bankroll);
-        } else if self.dealer_hand.blackjack_sum() == self.player_hand.blackjack_sum() {
+        } else if self.dealer_hand.blackjack_sum() == self.player_hands[0].blackjack_sum() {
           self.push_bet();
           println!("PUSH! Nobody wins.");
-        } else if self.dealer_hand.blackjack_sum() > self.player_hand.blackjack_sum() {
-          let bet = self.player_hand.bet;
+        } else if self.dealer_hand.blackjack_sum() > self.player_hands[0].blackjack_sum() {
+          let bet = self.player_hands[0].bet;
           self.lose_bet();
           println!("HOUSE WINS! You lose {}. You now have {}", bet, self.bankroll);
-        } else if self.player_hand.is_natural_blackjack() {
+        } else if self.player_hands[0].is_natural_blackjack() {
           let payout = self.blackjack_payout();
           self.win_bet_blackjack();
           println!("BLACKJACK! You receive {}. You now have {}", payout, self.bankroll);
         } else {
-          let bet = self.player_hand.bet;
+          let bet = self.player_hands[0].bet;
           self.win_bet();
           println!("YOU WIN! You receive {}. You now have {}", bet, self.bankroll);
         }
