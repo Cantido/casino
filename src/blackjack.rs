@@ -18,6 +18,7 @@ pub struct Hand {
   pub bet: Money,
   pub hidden_count: usize,
   pub standing: bool,
+  pub doubling_down: bool,
 }
 
 impl Hand {
@@ -60,6 +61,18 @@ impl Hand {
     }
 
     return sum
+  }
+
+  pub fn can_double_down(&self) -> bool {
+    let player_sum = self.blackjack_sum();
+    self.cards.len() == 2 &&
+      !self.doubling_down &&
+      (player_sum == 10 || player_sum == 11)
+  }
+
+  pub fn double_down(&mut self) {
+    self.doubling_down = true;
+    self.bet *= 2;
   }
 
   pub fn can_split(&self) -> bool {
@@ -124,7 +137,6 @@ pub struct Casino {
   pub bankroll: Money,
   shoe: Vec<Card>,
   insurance_bet: Money,
-  doubling_down: bool,
   splitting: bool,
   pub stats: BlackjackStatistics,
   dealer_hand: Hand,
@@ -229,16 +241,13 @@ impl Casino {
   }
 
   fn can_double_down(&self) -> bool {
-    let player_sum = self.player_hand.blackjack_sum();
-    self.player_hand.cards.len() == 2 &&
-      !self.doubling_down &&
-      self.player_hand.bet <= self.bankroll &&
-      (player_sum == 10 || player_sum == 11)
+    self.player_hand.can_double_down() &&
+      self.player_hand.bet <= self.bankroll
   }
 
   fn double_down(&mut self) {
-    self.doubling_down = true;
-    self.player_hand.bet *= 2;
+    self.bankroll -= self.player_hand.bet;
+    self.player_hand.double_down();
   }
 
   fn can_split(&self) -> bool {
