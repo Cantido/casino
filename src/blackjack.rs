@@ -76,6 +76,10 @@ impl Hand {
 
     other_hand
   }
+
+  pub fn is_finished(&self) -> bool {
+    self.standing || self.blackjack_sum() > 21
+  }
 }
 
 impl fmt::Display for Hand {
@@ -387,7 +391,7 @@ impl Casino {
 
     let mut current_hand = 0;
 
-    while !(self.player_hand.standing || self.player_hand.blackjack_sum() > 21) || (self.splitting && !(self.split_hand.standing || self.split_hand.blackjack_sum() > 21)) {
+    while !(self.player_hand.is_finished()) || (self.splitting && !(self.split_hand.is_finished())) {
 
       let mut options = vec!["Hit", "Stand"];
 
