@@ -337,7 +337,7 @@ impl Casino {
   }
 
   fn insurance_payout(&self) -> Money {
-    self.config.blackjack.insurance_payout(self.split_hand.bet)
+    self.config.blackjack.insurance_payout(self.player_hand.bet)
   }
 
   pub fn save(&self) {
