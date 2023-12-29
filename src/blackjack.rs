@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fs;
 use anyhow::Result;
+use colored::*;
 use inquire::{Confirm, Select, Text};
 use num::rational::Ratio;
 use serde::{Deserialize, Serialize};
@@ -333,7 +334,7 @@ impl Casino {
 
     let mut sp = Spinner::new(Spinners::Dots, "Dealing cards...".into());
     sleep(Duration::from_millis(1_500));
-    sp.stop_with_message("* The dealer issues your cards.".into());
+    sp.stop_with_message(format!("{}", "* The dealer issues your cards.".dimmed()).into());
 
     self.card_to_dealer();
     self.card_to_player(0);
@@ -378,7 +379,7 @@ impl Casino {
         Ok("Hit") => {
           let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
           sleep(Duration::from_millis(1_000));
-          sp.stop_with_message("* The dealer hands you another card.".into());
+          sp.stop_with_message(format!("{}", "* The dealer hands you another card.".dimmed()).into());
 
           self.card_to_player(current_hand);
         },
@@ -388,7 +389,7 @@ impl Casino {
 
           let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
           sleep(Duration::from_millis(1_000));
-          sp.stop_with_message("* The dealer hands you another card.".into());
+          sp.stop_with_message(format!("{}", "* The dealer hands you another card.".dimmed()).into());
 
           self.card_to_player(current_hand);
 
@@ -400,7 +401,7 @@ impl Casino {
 
           let mut sp = Spinner::new(Spinners::Dots, "Dealing your cards...".into());
           sleep(Duration::from_millis(1_000));
-          sp.stop_with_message("* The dealer hands you another two cards.".into());
+          sp.stop_with_message(format!("{}", "* The dealer hands you another two cards.".dimmed()).into());
 
           self.card_to_player(current_hand);
           self.card_to_player(current_hand + 1);
@@ -428,7 +429,7 @@ impl Casino {
     if self.player_hands.iter().any(|hand| hand.blackjack_sum() <= 21) {
       let mut sp = Spinner::new(Spinners::Dots, "Revealing the hole card...".into());
       sleep(Duration::from_millis(1_000));
-      sp.stop_with_message("* Hole card revealed!".into());
+      sp.stop_with_message(format!("{}", "* Hole card revealed!".dimmed()).into());
 
       self.dealer_hand.hidden_count = 0;
       println!("Dealer's hand: {}", self.dealer_hand);
@@ -436,7 +437,7 @@ impl Casino {
       while self.dealer_hand.blackjack_sum() < 17 {
         let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
         sleep(Duration::from_millis(1_000));
-        sp.stop_with_message("* The dealer issues themself another card.".into());
+        sp.stop_with_message(format!("{}", "* The dealer issues themself another card.".dimmed()).into());
 
         self.card_to_dealer();
         println!("Dealer's hand: {}", self.dealer_hand);
@@ -444,7 +445,7 @@ impl Casino {
 
       let mut sp = Spinner::new(Spinners::Dots, "Determining outcome...".into());
       sleep(Duration::from_millis(1_000));
-      sp.stop_with_message("* The hand is finished!".into());
+      sp.stop_with_message(format!("{}", "* The hand is finished!".dimmed()).into());
 
       for i in 0..self.player_hands.len() {
         let hand = &self.player_hands[i];
@@ -482,11 +483,11 @@ impl Casino {
 
     if self.bankroll.is_zero() {
       self.add_bankroll(self.config.mister_greens_gift);
-      println!("* Unfortunately, you've run out of money.");
-      println!("* However, a portly gentleman in a sharp suit was watching you play your final hand.");
-      println!("* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"");
-      println!("* \"Oh, and always remember the name: MISTER GREEN!\"");
-      println!("* The man hands you {}.", self.config.mister_greens_gift);
+      println!("{}", "* Unfortunately, you've run out of money.".dimmed());
+      println!("{}", "* However, a portly gentleman in a sharp suit was watching you play your final hand.".dimmed());
+      println!("{}", "* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"".dimmed());
+      println!("{}", "* \"Oh, and always remember the name: MISTER GREEN!\"".dimmed());
+      println!("{}", format!("* The man hands you {}", self.config.mister_greens_gift).dimmed());
     }
 
     self.save();
