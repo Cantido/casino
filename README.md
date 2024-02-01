@@ -1,7 +1,7 @@
 # casino
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/Cantido/casino/rust.yml)
-![Crates.io](https://img.shields.io/crates/d/casino?link=https%3A%2F%2Fcrates.io%2Fcrates%2Fcasino)
+[![Crates.io](https://img.shields.io/crates/d/casino)](https://crates.io/crates/casino)
 ![GitHub License](https://img.shields.io/github/license/Cantido/casino)
 
 An entire casino built into your terminal.
