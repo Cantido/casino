@@ -209,14 +209,14 @@ impl Casino {
 
   pub fn add_bankroll(&mut self, amount: Money) {
     self.bankroll += amount;
-    self.stats.blackjack.update_bankroll(self.bankroll);
+    self.stats.update_bankroll(self.bankroll);
   }
 
   pub fn subtract_bankroll(&mut self, amount: Money) -> Result<()> {
     ensure!(self.bankroll > amount, "Cannot subtract to negative value");
 
     self.bankroll -= amount;
-    self.stats.blackjack.update_bankroll(self.bankroll);
+    self.stats.update_bankroll(self.bankroll);
 
     Ok(())
   }
@@ -268,7 +268,7 @@ impl Casino {
 
   fn lose_bet(&mut self, hand_index: usize) {
     self.stats.blackjack.record_loss(self.player_hands[hand_index].bet);
-    self.stats.blackjack.update_bankroll(self.bankroll);
+    self.stats.update_bankroll(self.bankroll);
     self.player_hands[hand_index].bet = Money::ZERO;
   }
 

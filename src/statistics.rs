@@ -6,6 +6,8 @@ use crate::money::Money;
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Statistics {
+    pub biggest_bankroll: Money,
+    pub times_bankrupted: u32,
     pub blackjack: BlackjackStatistics,
     pub roulette: RouletteStatistics,
 }
@@ -31,6 +33,14 @@ impl Statistics {
         write(stats_path, toml::to_string(&self)?)?;
         Ok(())
     }
+
+  pub fn update_bankroll(&mut self, amount: Money) {
+    if amount > self.biggest_bankroll {
+      self.biggest_bankroll = amount;
+    } else if amount.is_zero() {
+      self.times_bankrupted += 1;
+    }
+  }
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -70,8 +80,6 @@ pub struct BlackjackStatistics {
   pub money_lost: Money,
   pub biggest_win: Money,
   pub biggest_loss: Money,
-  pub biggest_bankroll: Money,
-  pub times_bankrupted: u32,
 }
 
 impl BlackjackStatistics {
@@ -93,13 +101,5 @@ impl BlackjackStatistics {
 
   pub fn record_push(&mut self) {
     self.hands_push += 1;
-  }
-
-  pub fn update_bankroll(&mut self, amount: Money) {
-    if amount > self.biggest_bankroll {
-      self.biggest_bankroll = amount;
-    } else if amount.is_zero() {
-      self.times_bankrupted += 1;
-    }
   }
 }

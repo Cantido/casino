@@ -36,6 +36,15 @@ pub fn play_roulette() -> Result<()> {
       println!("Your balance is now {}", casino.bankroll);
     }
 
+    if casino.bankroll.is_zero() {
+      casino.add_bankroll(casino.config.mister_greens_gift);
+      println!("{}", "* Unfortunately, you've run out of money.".dimmed());
+      println!("{}", "* However, a portly gentleman in a sharp suit was watching you play your final round.".dimmed());
+      println!("{}", "* He says \"I like your moxie, kiddo. Take this, and be a little more careful next time. This stuff doesn't grow on trees.\"".dimmed());
+      println!("{}", "* \"Oh, and always remember the name: MISTER GREEN!\"".dimmed());
+      println!("{}", format!("* The man hands you {}", casino.config.mister_greens_gift).dimmed());
+    }
+
     casino.save();
 
     Ok(())
