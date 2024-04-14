@@ -3,6 +3,7 @@ use anyhow::Result;
 use inquire::Select;
 use clap::{Parser, Subcommand};
 use casino::blackjack::Casino;
+use casino::roulette::play_roulette;
 use casino::config::Config;
 
 #[derive(Parser, Debug)]
@@ -16,6 +17,8 @@ struct Args {
 enum Commands {
   /// Play a hand of blackjack
   Blackjack,
+  /// Play a round of roulette
+  Roulette,
   /// Show lifetime statistics
   Stats,
   /// Shuffle the persisted deck state
@@ -47,6 +50,9 @@ fn main() -> Result<()> {
     Some(Commands::Blackjack) => {
       let mut state = Casino::from_filesystem()?;
       state.play_blackjack()?;
+    },
+    Some(Commands::Roulette) => {
+      play_roulette()?;
     },
     Some(Commands::Shuffle) => {
       let mut state = Casino::from_filesystem()?;

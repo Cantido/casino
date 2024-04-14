@@ -16,6 +16,7 @@ keywords = ["gambling", "blackjack", "card_games"]
 anyhow = "1.0.75"
 clap = { version = "4.4.10", features = ["derive"] }
 colored = "2.1.0"
+crossterm = "0.27.0"
 directories = "5.0.1"
 inquire = "0.6.2"
 num = { version = "0.4.1", features = ["serde"] }

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fs;
+use anyhow::ensure;
 use anyhow::Result;
 use colored::*;
 use inquire::{Confirm, Select, Text};
@@ -209,9 +210,18 @@ impl Casino {
     self.player_hands[hand_index].push(card);
   }
 
-  fn add_bankroll(&mut self, amount: Money) {
+  pub fn add_bankroll(&mut self, amount: Money) {
     self.bankroll += amount;
     self.stats.update_bankroll(self.bankroll);
+  }
+
+  pub fn subtract_bankroll(&mut self, amount: Money) -> Result<()> {
+    ensure!(self.bankroll > amount, "Cannot subtract to negative value");
+
+    self.bankroll -= amount;
+    self.stats.update_bankroll(self.bankroll);
+
+    Ok(())
   }
 
   fn can_increase_bet(&self, amount: Money) -> bool {
