@@ -12,7 +12,6 @@ use crate::{blackjack::Casino, money::Money};
 
 pub fn play_roulette() -> Result<()> {
     let mut casino = Casino::from_filesystem()?;
-    println!("{:?}", casino.config.stats_path);
 
     let bet = select_bet();
     let bet_amount = get_bet(&casino.bankroll);
@@ -57,7 +56,7 @@ fn get_bet(bankroll: &Money) -> Money {
       match bet_result {
         Ok(bet_text) => {
           let bet = bet_text.trim().parse::<Money>().unwrap();
-          if bet < *bankroll {
+          if bet <= *bankroll {
             return bet;
           } else {
             println!("You can't bet that amount, try again.");

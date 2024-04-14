@@ -213,7 +213,7 @@ impl Casino {
   }
 
   pub fn subtract_bankroll(&mut self, amount: Money) -> Result<()> {
-    ensure!(self.bankroll > amount, "Cannot subtract to negative value");
+    ensure!(self.bankroll >= amount, "Cannot subtract to negative value");
 
     self.bankroll -= amount;
     self.stats.update_bankroll(self.bankroll);
