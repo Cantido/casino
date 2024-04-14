@@ -118,14 +118,12 @@ fn spin_wheel(wheel: Vec<Pocket>) -> Pocket {
 
     println!("{}", "* The croupier spins the wheel".dimmed());
 
-    print!("The wheel: ");
-
     while velocity > 0.0 {
       let index = position.to_usize().unwrap();
       let pocket = &wheel[index];
 
       stdout.queue(cursor::SavePosition).unwrap();
-      stdout.write_all(pocket.to_string().as_bytes()).unwrap();
+      stdout.write_all(format!("The wheel spins: {}", pocket.to_string()).as_bytes()).unwrap();
       stdout.queue(cursor::RestorePosition).unwrap();
       stdout.flush().unwrap();
 
@@ -139,13 +137,14 @@ fn spin_wheel(wheel: Vec<Pocket>) -> Pocket {
       stdout.queue(cursor::RestorePosition).unwrap();
       stdout.queue(terminal::Clear(terminal::ClearType::FromCursorDown)).unwrap();
     }
+    sleep(Duration::from_millis(1200));
 
     let index = position.to_usize().unwrap();
     let pocket = &wheel[index];
-    println!("{}", pocket);
-
+    println!("The wheel stops: {}", pocket);
 
     sleep(Duration::from_millis(1200));
+
 
     pocket.clone()
 }
