@@ -61,6 +61,8 @@ fn select_bet() -> RouletteBet {
     loop {
       let options: Vec<RouletteBetType> = vec![
         RouletteBetType::Straight,
+        RouletteBetType::Split,
+        RouletteBetType::Street,
         RouletteBetType::Color,
         RouletteBetType::Column,
         RouletteBetType::Dozens,
@@ -72,6 +74,12 @@ fn select_bet() -> RouletteBet {
       match selected {
         Ok(RouletteBetType::Straight) => {
           return Select::new("Which number will you bet on?", RouletteBetType::Straight.bets()).prompt().unwrap();
+        },
+        Ok(RouletteBetType::Split) => {
+          return Select::new("Which two numbers will you bet on?", RouletteBetType::Split.bets()).prompt().unwrap();
+        },
+        Ok(RouletteBetType::Street) => {
+          return Select::new("Which three numbers will you bet on?", RouletteBetType::Street.bets()).prompt().unwrap();
         },
         Ok(RouletteBetType::Color) => {
           return Select::new("Which color will you bet on?", RouletteBetType::Color.bets()).prompt().unwrap();
@@ -210,6 +218,8 @@ fn single_zero_wheel() -> Vec<Pocket> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum RouletteBetType {
   Straight,
+  Split,
+  Street,
   Color,
   Dozens,
   HighsLows,
@@ -221,6 +231,8 @@ impl RouletteBetType {
   fn bets(&self) -> Vec<RouletteBet> {
     match self {
       RouletteBetType::Straight => (0..=36).into_iter().map(|v| RouletteBet::Straight(v)).collect(),
+      RouletteBetType::Split => (1..=33).into_iter().map(|v| RouletteBet::Split(v, v + 3)).collect(),
+      RouletteBetType::Street => vec![1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34].into_iter().map(|v| RouletteBet::Street(v)).collect(),
       RouletteBetType::Color => vec![RouletteBet::Color(Color::Red), RouletteBet::Color(Color::Black)],
       RouletteBetType::Dozens => vec![
         RouletteBet::Dozens(Dozen::First),
@@ -244,6 +256,8 @@ impl fmt::Display for RouletteBetType {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       match self {
         RouletteBetType::Straight => write!(f, "straight"),
+        RouletteBetType::Split => write!(f, "split"),
+        RouletteBetType::Street => write!(f, "street"),
         RouletteBetType::Color => write!(f, "color"),
         RouletteBetType::Dozens => write!(f, "dozen"),
         RouletteBetType::Column => write!(f, "column"),
@@ -256,6 +270,8 @@ impl fmt::Display for RouletteBetType {
 #[derive(Debug)]
 enum RouletteBet {
   Straight(u8),
+  Split(u8, u8),
+  Street(u8),
   Color(Color),
   Dozens(Dozen),
   HighsLows(HighLow),
@@ -267,6 +283,8 @@ impl RouletteBet {
   fn is_match(&self, pocket: &Pocket) -> bool {
     match self {
       RouletteBet::Straight(val) => pocket.value == *val,
+      RouletteBet::Split(v1, v2) => pocket.value == *v1 || pocket.value == *v2,
+      RouletteBet::Street(first_val) => pocket.value == *first_val || pocket.value == *first_val + 1 || pocket.value == *first_val + 2,
       RouletteBet::Color(color) => pocket.color == *color,
       RouletteBet::Dozens(Dozen::First) => pocket.value >= 1 && pocket.value <= 12,
       RouletteBet::Dozens(Dozen::Second) => pocket.value >= 13 && pocket.value <= 24,
@@ -282,6 +300,8 @@ impl RouletteBet {
   fn payout(&self) -> (u8, u8) {
     match self {
       RouletteBet::Straight(_) => (35, 1),
+      RouletteBet::Split(_, _) => (17, 1),
+      RouletteBet::Street(_) => (11, 1),
       RouletteBet::Color(_) => (1, 1),
       RouletteBet::Dozens(_) => (2, 1),
       RouletteBet::HighsLows(_) => (1, 1),
@@ -297,6 +317,12 @@ impl fmt::Display for RouletteBet {
         RouletteBet::Straight(val) => {
           let pocket = Pocket::new(*val).unwrap();
           write!(f, "{} ({:?})", pocket.value, pocket.color)
+        },
+        RouletteBet::Split(v1, v2) => {
+          write!(f, "{} & {}", v1, v2)
+        },
+        RouletteBet::Street(v1) => {
+          write!(f, "{}, {}, {}", v1, v1 + 1, v1 + 2)
         },
         RouletteBet::Color(col) => {
           write!(f, "{:?}", col)
