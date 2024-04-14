@@ -135,7 +135,7 @@ impl fmt::Display for Hand {
 
 #[derive(Default)]
 pub struct Casino {
-  config: Config,
+  pub config: Config,
   pub bankroll: Money,
   shoe: Vec<Card>,
   insurance_bet: Money,

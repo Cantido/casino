@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{io::{Write, stdout}, thread::sleep, time::Duration};
+use std::{fs::{self, write}, io::{stdout, Write}, path::Path, thread::sleep, time::Duration};
 
 use anyhow::{ensure, Result};
 use colored::*;
@@ -8,10 +8,11 @@ use inquire::{Select, Text};
 use num::ToPrimitive;
 use rand::Rng;
 
-use crate::{blackjack::Casino, money::Money};
+use crate::{blackjack::Casino, money::Money, statistics::RouletteStatistics};
 
 pub fn play_roulette() -> Result<()> {
     let mut casino = Casino::from_filesystem()?;
+    println!("{:?}", casino.config.stats_path);
 
     let bet = select_bet();
     let bet_amount = get_bet(&casino.bankroll);
@@ -26,10 +27,12 @@ pub fn play_roulette() -> Result<()> {
       let payout = bet_amount * num as i64;
       println!("You win! {} has been added to your account.", payout);
       casino.add_bankroll(payout);
+      record_win(&casino.config.stats_path, payout)?;
       println!("Your balance is now {}", casino.bankroll);
     } else {
       println!("You lose! {} has been deducted from your account.", bet_amount);
       casino.subtract_bankroll(bet_amount)?;
+      record_loss(&casino.config.stats_path, bet_amount)?;
       println!("Your balance is now {}", casino.bankroll);
     }
 
@@ -373,4 +376,36 @@ impl fmt::Display for RouletteBet {
         }
       }
   }
+}
+
+fn record_win(stats_path: &Path, amount: Money) -> Result<()> {
+    init_stats(stats_path)?;
+    let stats_string = fs::read_to_string(stats_path)?;
+    let mut stats: RouletteStatistics = toml::from_str(&stats_string).unwrap();
+
+    stats.record_win(amount);
+
+    write(stats_path, toml::to_string(&stats)?)?;
+
+    Ok(())
+}
+
+fn record_loss(stats_path: &Path, amount: Money) -> Result<()> {
+    init_stats(stats_path)?;
+    let stats_string = fs::read_to_string(stats_path)?;
+    let mut stats: RouletteStatistics = toml::from_str(&stats_string).unwrap();
+
+    stats.record_loss(amount);
+
+    write(stats_path, toml::to_string(&stats)?)?;
+
+    Ok(())
+}
+
+fn init_stats(stats_path: &Path) -> Result<()> {
+  if !stats_path.try_exists()? {
+    let stats = RouletteStatistics::default();
+    write(stats_path, toml::to_string(&stats)?)?;
+  }
+  Ok(())
 }
