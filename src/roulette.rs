@@ -63,6 +63,8 @@ fn select_bet() -> RouletteBet {
         RouletteBetType::Straight,
         RouletteBetType::Split,
         RouletteBetType::Street,
+        RouletteBetType::Square,
+        RouletteBetType::SixLine,
         RouletteBetType::Color,
         RouletteBetType::Column,
         RouletteBetType::Dozens,
@@ -80,6 +82,12 @@ fn select_bet() -> RouletteBet {
         },
         Ok(RouletteBetType::Street) => {
           return Select::new("Which three numbers will you bet on?", RouletteBetType::Street.bets()).prompt().unwrap();
+        },
+        Ok(RouletteBetType::Square) => {
+          return Select::new("Which four numbers will you bet on?", RouletteBetType::Square.bets()).prompt().unwrap();
+        },
+        Ok(RouletteBetType::SixLine) => {
+          return Select::new("Which six numbers will you bet on?", RouletteBetType::SixLine.bets()).prompt().unwrap();
         },
         Ok(RouletteBetType::Color) => {
           return Select::new("Which color will you bet on?", RouletteBetType::Color.bets()).prompt().unwrap();
@@ -220,6 +228,8 @@ enum RouletteBetType {
   Straight,
   Split,
   Street,
+  Square,
+  SixLine,
   Color,
   Dozens,
   HighsLows,
@@ -233,6 +243,8 @@ impl RouletteBetType {
       RouletteBetType::Straight => (0..=36).into_iter().map(|v| RouletteBet::Straight(v)).collect(),
       RouletteBetType::Split => (1..=33).into_iter().map(|v| RouletteBet::Split(v, v + 3)).collect(),
       RouletteBetType::Street => vec![1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34].into_iter().map(|v| RouletteBet::Street(v)).collect(),
+      RouletteBetType::Square => vec![1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 22, 23, 25, 26, 28, 29, 21, 32].into_iter().map(|v| RouletteBet::Square(v)).collect(),
+      RouletteBetType::SixLine => vec![1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31].into_iter().map(|v| RouletteBet::SixLine(v)).collect(),
       RouletteBetType::Color => vec![RouletteBet::Color(Color::Red), RouletteBet::Color(Color::Black)],
       RouletteBetType::Dozens => vec![
         RouletteBet::Dozens(Dozen::First),
@@ -258,6 +270,8 @@ impl fmt::Display for RouletteBetType {
         RouletteBetType::Straight => write!(f, "straight"),
         RouletteBetType::Split => write!(f, "split"),
         RouletteBetType::Street => write!(f, "street"),
+        RouletteBetType::Square => write!(f, "square"),
+        RouletteBetType::SixLine => write!(f, "six-line"),
         RouletteBetType::Color => write!(f, "color"),
         RouletteBetType::Dozens => write!(f, "dozen"),
         RouletteBetType::Column => write!(f, "column"),
@@ -272,6 +286,8 @@ enum RouletteBet {
   Straight(u8),
   Split(u8, u8),
   Street(u8),
+  Square(u8),
+  SixLine(u8),
   Color(Color),
   Dozens(Dozen),
   HighsLows(HighLow),
@@ -285,6 +301,8 @@ impl RouletteBet {
       RouletteBet::Straight(val) => pocket.value == *val,
       RouletteBet::Split(v1, v2) => pocket.value == *v1 || pocket.value == *v2,
       RouletteBet::Street(first_val) => pocket.value == *first_val || pocket.value == *first_val + 1 || pocket.value == *first_val + 2,
+      RouletteBet::Square(first_val) => pocket.value == *first_val || pocket.value == *first_val + 1 || pocket.value == *first_val + 3 || pocket.value == *first_val + 4,
+      RouletteBet::SixLine(first_val) => pocket.value >= *first_val && pocket.value <= *first_val + 5,
       RouletteBet::Color(color) => pocket.color == *color,
       RouletteBet::Dozens(Dozen::First) => pocket.value >= 1 && pocket.value <= 12,
       RouletteBet::Dozens(Dozen::Second) => pocket.value >= 13 && pocket.value <= 24,
@@ -302,6 +320,8 @@ impl RouletteBet {
       RouletteBet::Straight(_) => (35, 1),
       RouletteBet::Split(_, _) => (17, 1),
       RouletteBet::Street(_) => (11, 1),
+      RouletteBet::Square(_) => (8, 1),
+      RouletteBet::SixLine(_) => (5, 1),
       RouletteBet::Color(_) => (1, 1),
       RouletteBet::Dozens(_) => (2, 1),
       RouletteBet::HighsLows(_) => (1, 1),
@@ -323,6 +343,12 @@ impl fmt::Display for RouletteBet {
         },
         RouletteBet::Street(v1) => {
           write!(f, "{}, {}, {}", v1, v1 + 1, v1 + 2)
+        },
+        RouletteBet::SixLine(v1) => {
+          write!(f, "{}-{}", v1, v1 + 6)
+        },
+        RouletteBet::Square(v1) => {
+          write!(f, "{}, {}, {}, {}", v1, v1 + 1, v1 + 3, v1 + 4)
         },
         RouletteBet::Color(col) => {
           write!(f, "{:?}", col)
