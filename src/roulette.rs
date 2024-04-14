@@ -2,7 +2,8 @@ use core::fmt;
 use std::{io::{Write, stdout}, thread::sleep, time::Duration};
 
 use anyhow::{ensure, Result};
-use crossterm::{cursor, style, terminal, QueueableCommand};
+use colored::*;
+use crossterm::{cursor, terminal, QueueableCommand};
 use inquire::{Select, Text};
 use num::ToPrimitive;
 use rand::Rng;
@@ -38,10 +39,8 @@ pub fn play_roulette() -> Result<()> {
 }
 
 fn get_bet(bankroll: &Money) -> Money {
-    println!("Your money: {}", bankroll);
-
     loop {
-      let bet_result = Text::new("How much will you bet?").prompt();
+      let bet_result = Text::new(&format!("How much will you bet? (max: {})", bankroll).to_string()).prompt();
 
       match bet_result {
         Ok(bet_text) => {
@@ -117,20 +116,16 @@ fn spin_wheel(wheel: Vec<Pocket>) -> Pocket {
 
     let mut stdout = stdout();
 
+    println!("{}", "* The dealer spins the wheel".dimmed());
+
+    print!("The wheel: ");
+
     while velocity > 0.0 {
       let index = position.to_usize().unwrap();
       let pocket = &wheel[index];
 
-      let bgcolor = match pocket.color {
-        Color::Green => style::Color::DarkGreen,
-        Color::Black => style::Color::Black,
-        Color::Red => style::Color::DarkRed,
-      };
-
       stdout.queue(cursor::SavePosition).unwrap();
-      stdout.queue(style::SetBackgroundColor(bgcolor)).unwrap();
-      stdout.queue(style::SetForegroundColor(style::Color::White)).unwrap();
-      stdout.write_all(format!("{}", pocket.value).as_bytes()).unwrap();
+      stdout.write_all(pocket.to_string().as_bytes()).unwrap();
       stdout.queue(cursor::RestorePosition).unwrap();
       stdout.flush().unwrap();
 
@@ -147,7 +142,8 @@ fn spin_wheel(wheel: Vec<Pocket>) -> Pocket {
 
     let index = position.to_usize().unwrap();
     let pocket = &wheel[index];
-    println!("{} ({:?})", pocket.value, pocket.color);
+    println!("{}", pocket);
+
 
     sleep(Duration::from_millis(1200));
 
@@ -210,6 +206,16 @@ impl Pocket {
         };
 
       Ok(Pocket { value: val, color })
+    }
+  }
+}
+
+impl fmt::Display for Pocket {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.color {
+      Color::Green => write!(f, "{} (green)", self.value.to_string().white().on_green()),
+      Color::Black => write!(f, "{} (black)", self.value.to_string().white().on_black()),
+      Color::Red => write!(f, "{} (red)", self.value.to_string().white().on_red()),
     }
   }
 }

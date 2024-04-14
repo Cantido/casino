@@ -16,7 +16,7 @@ $ cargo install casino
 
 ## Usage
 
-Run `casino blackjack` to play a game of blackjack.
+Run `casino` for a selection of games, or `casino <game>` to start a specific game.
 
 ```console
 $ casino blackjack
