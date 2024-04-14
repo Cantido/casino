@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fs::{self, write}, io::{stdout, Write}, path::Path, thread::sleep, time::Duration};
+use std::{io::{stdout, Write}, thread::sleep, time::Duration};
 
 use anyhow::{ensure, Result};
 use colored::*;
@@ -8,7 +8,7 @@ use inquire::{Select, Text};
 use num::ToPrimitive;
 use rand::Rng;
 
-use crate::{blackjack::Casino, money::Money, statistics::Statistics};
+use crate::{blackjack::Casino, money::Money};
 
 pub fn play_roulette() -> Result<()> {
     let mut casino = Casino::from_filesystem()?;
