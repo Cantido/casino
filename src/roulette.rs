@@ -267,16 +267,16 @@ impl RouletteBetType {
 impl fmt::Display for RouletteBetType {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       match self {
-        RouletteBetType::Straight => write!(f, "straight"),
-        RouletteBetType::Split => write!(f, "split"),
-        RouletteBetType::Street => write!(f, "street"),
-        RouletteBetType::Square => write!(f, "square"),
-        RouletteBetType::SixLine => write!(f, "six-line"),
-        RouletteBetType::Color => write!(f, "color"),
-        RouletteBetType::Dozens => write!(f, "dozen"),
-        RouletteBetType::Column => write!(f, "column"),
-        RouletteBetType::HighsLows => write!(f, "highs/lows"),
-        RouletteBetType::OddsEvens => write!(f, "odds/evens"),
+        RouletteBetType::Straight => write!(f, "straight (1 number, 35:1 payout)"),
+        RouletteBetType::Split => write!(f, "split (2 numbers, 17:1 payout)"),
+        RouletteBetType::Street => write!(f, "street (3 numbers, 11:1 payout)"),
+        RouletteBetType::Square => write!(f, "square (4 numbers, 8:1 payout)"),
+        RouletteBetType::SixLine => write!(f, "six-line (6 numbers, 5:1 payout)"),
+        RouletteBetType::Color => write!(f, "color (18 numbers, 1:1 payout)"),
+        RouletteBetType::Dozens => write!(f, "dozen (12 numbers, 2:1 payout)"),
+        RouletteBetType::Column => write!(f, "column (12 numbers, 2:1 payout)"),
+        RouletteBetType::HighsLows => write!(f, "highs/lows (18 numbers, 1:1 payout)"),
+        RouletteBetType::OddsEvens => write!(f, "odds/evens (18 numbers, 1:1 payout)"),
       }
   }
 }
