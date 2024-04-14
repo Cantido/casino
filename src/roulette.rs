@@ -116,7 +116,7 @@ fn spin_wheel(wheel: Vec<Pocket>) -> Pocket {
 
     let mut stdout = stdout();
 
-    println!("{}", "* The dealer spins the wheel".dimmed());
+    println!("{}", "* The croupier spins the wheel".dimmed());
 
     print!("The wheel: ");
 
