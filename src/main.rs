@@ -37,15 +37,25 @@ fn main() -> Result<()> {
       let state = Casino::from_filesystem()?;
       let stats = state.stats;
 
-      println!("Hands won...............{:.>15}", stats.hands_won);
-      println!("Hands lost..............{:.>15}", stats.hands_lost);
-      println!("Hands tied..............{:.>15}", stats.hands_push);
-      println!("Times hit bankruptcy....{:.>15}", stats.times_bankrupted);
-      println!("Total money won.........{:.>15}", stats.money_won);
-      println!("Total money lost........{:.>15}", stats.money_lost);
-      println!("Biggest win.............{:.>15}", stats.biggest_win);
-      println!("Biggest loss............{:.>15}", stats.biggest_loss);
-      println!("Most money in the bank..{:.>15}", stats.biggest_bankroll);
+      println!("Blackjack");
+      println!("  Hands won...............{:.>15}", stats.blackjack.hands_won);
+      println!("  Hands lost..............{:.>15}", stats.blackjack.hands_lost);
+      println!("  Hands tied..............{:.>15}", stats.blackjack.hands_push);
+      println!("  Times hit bankruptcy....{:.>15}", stats.blackjack.times_bankrupted);
+      println!("  Total money won.........{:.>15}", stats.blackjack.money_won);
+      println!("  Total money lost........{:.>15}", stats.blackjack.money_lost);
+      println!("  Biggest win.............{:.>15}", stats.blackjack.biggest_win);
+      println!("  Biggest loss............{:.>15}", stats.blackjack.biggest_loss);
+      println!("  Most money in the bank..{:.>15}", stats.blackjack.biggest_bankroll);
+
+      println!();
+      println!("Roulette");
+      println!("  Spins won...............{:.>15}", stats.roulette.spins_won);
+      println!("  Spins lost..............{:.>15}", stats.roulette.spins_lost);
+      println!("  Total money won.........{:.>15}", stats.roulette.money_won);
+      println!("  Total money lost........{:.>15}", stats.roulette.money_lost);
+      println!("  Biggest win.............{:.>15}", stats.roulette.biggest_win);
+      println!("  Biggest loss............{:.>15}", stats.roulette.biggest_loss);
     },
     Some(Commands::Blackjack) => {
       let mut state = Casino::from_filesystem()?;

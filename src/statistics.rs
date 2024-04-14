@@ -1,5 +1,37 @@
+use std::{fs::{self, write}, path::Path};
+
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use crate::money::Money;
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct Statistics {
+    pub blackjack: BlackjackStatistics,
+    pub roulette: RouletteStatistics,
+}
+
+impl Statistics {
+    pub fn init(stats_path: &Path) -> Result<()> {
+        if !stats_path.try_exists()? {
+            let stats = Self::default();
+            stats.save(stats_path)?;
+        }
+        Ok(())
+    }
+
+    pub fn load(stats_path: &Path) -> Result<Self> {
+        let stats_string = fs::read_to_string(stats_path)?;
+
+        let stats = toml::from_str(&stats_string)?;
+
+        Ok(stats)
+    }
+
+    pub fn save(&self, stats_path: &Path) -> Result<()> {
+        write(stats_path, toml::to_string(&self)?)?;
+        Ok(())
+    }
+}
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct RouletteStatistics {

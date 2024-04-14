@@ -11,8 +11,8 @@ use std::thread::sleep;
 use std::time::Duration;
 use crate::money::Money;
 use crate::cards::{Card, Value, shoe};
-use crate::statistics::BlackjackStatistics;
 use crate::config::Config;
+use crate::statistics::Statistics;
 
 #[derive(Default)]
 pub struct Hand {
@@ -140,7 +140,7 @@ pub struct Casino {
   shoe: Vec<Card>,
   insurance_bet: Money,
   splitting: bool,
-  pub stats: BlackjackStatistics,
+  pub stats: Statistics,
   dealer_hand: Hand,
   player_hands: Vec<Hand>,
 }
@@ -179,11 +179,8 @@ impl Casino {
   }
 
   fn load_stats(&mut self) {
-    if let Ok(stats_string) = fs::read_to_string(&self.config.stats_path) {
-      let stats: BlackjackStatistics = toml::from_str(&stats_string).unwrap();
-
-      self.stats = stats;
-    };
+    Statistics::init(&self.config.stats_path).unwrap();
+    self.stats = Statistics::load(&self.config.stats_path).unwrap();
   }
 
   fn draw_card(&mut self) -> Card {
@@ -212,14 +209,14 @@ impl Casino {
 
   pub fn add_bankroll(&mut self, amount: Money) {
     self.bankroll += amount;
-    self.stats.update_bankroll(self.bankroll);
+    self.stats.blackjack.update_bankroll(self.bankroll);
   }
 
   pub fn subtract_bankroll(&mut self, amount: Money) -> Result<()> {
     ensure!(self.bankroll > amount, "Cannot subtract to negative value");
 
     self.bankroll -= amount;
-    self.stats.update_bankroll(self.bankroll);
+    self.stats.blackjack.update_bankroll(self.bankroll);
 
     Ok(())
   }
@@ -270,8 +267,8 @@ impl Casino {
   }
 
   fn lose_bet(&mut self, hand_index: usize) {
-    self.stats.record_loss(self.player_hands[hand_index].bet);
-    self.stats.update_bankroll(self.bankroll);
+    self.stats.blackjack.record_loss(self.player_hands[hand_index].bet);
+    self.stats.blackjack.update_bankroll(self.bankroll);
     self.player_hands[hand_index].bet = Money::ZERO;
   }
 
@@ -285,7 +282,7 @@ impl Casino {
 
     payout += self.player_hands[hand_index].bet;
 
-    self.stats.record_win(payout);
+    self.stats.blackjack.record_win(payout);
     self.add_bankroll(payout);
     self.player_hands[hand_index].bet = Money::ZERO;
   }
@@ -296,7 +293,7 @@ impl Casino {
   }
 
   fn push_bet(&mut self, hand_index: usize) {
-    self.stats.record_push();
+    self.stats.blackjack.record_push();
     self.bankroll += self.player_hands[hand_index].bet;
     self.player_hands[hand_index].bet = Money::ZERO;
   }
