@@ -71,7 +71,7 @@ fn main() -> Result<()> {
       fs::remove_file(&config.stats_path)?;
     }
     None => {
-      let options = vec!["Blackjack"];
+      let options = vec!["Blackjack", "Roulette"];
 
       let ans = Select::new("What would you like to play?", options).prompt();
 
@@ -79,7 +79,10 @@ fn main() -> Result<()> {
         Ok("Blackjack") => {
           let mut state = Casino::from_filesystem()?;
           state.play_blackjack()?
-        }
+        },
+        Ok("Roulette") => {
+          play_roulette()?;
+        },
         Ok(_) => panic!("Unknown option"),
         Err(_) => panic!("Error fetching your choice"),
       }
