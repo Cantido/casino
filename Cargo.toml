@@ -19,6 +19,7 @@ colored = "2.1.0"
 crossterm = "0.27.0"
 directories = "5.0.1"
 inquire = "0.6.2"
+itertools = "0.12.1"
 num = { version = "0.4.1", features = ["serde"] }
 rand = "0.8.5"
 rust_decimal = { version = "1.33.1", features = ["serde-with-str"] }

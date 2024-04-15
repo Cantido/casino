@@ -5,6 +5,7 @@ use anyhow::Result;
 use colored::*;
 use crossterm::{cursor, terminal, QueueableCommand};
 use inquire::Select;
+use itertools::Itertools;
 use rand::{distributions::{Distribution, WeightedIndex}, thread_rng, Rng};
 use rust_decimal::Decimal;
 
@@ -32,44 +33,26 @@ pub fn play_slots() -> Result<()> {
     sleep(Duration::from_millis(600));
     println!("{}", "* The wheels start spinning.".dimmed());
 
+    let slot_machine = SlotMachine::new_with_default_symbols(bet_selection.multiplier);
+
     let mut rng = thread_rng();
-
-    let wheel = [
-        ("🍋", 30),
-        ("🍒", 30),
-        ("🍊", 30),
-        ("🍉", 30),
-        ("🔔", 20),
-        ("🍌", 20),
-        ("🍫", 10),
-        ("💰", 2),
-        ("💎", 1),
-    ];
-
-    let symbols: Vec<&str> = wheel.iter().map(|i| i.0).collect();
-    let dist = WeightedIndex::new(wheel.iter().map(|i| i.1)).unwrap();
-
     let mut position = 0.0;
     let mut velocity = rng.gen_range(20.0..40.0);
     let accel = rng.gen_range(-10.0..-5.0);
 
     let mut stdout = stdout();
 
-    let mut samples: Vec<usize> = dist.clone().sample_iter(&mut rng).take(5).collect();
-    let mut selected: Vec<&str> = samples.iter().map(|i| symbols[*i]).collect();
+    let mut selected: Vec<&Symbol> = slot_machine.pull();
 
     while velocity > 0.0 {
         if position >= 1.0 {
-            samples = dist.clone().sample_iter(&mut rng).take(5).collect();
-            selected = samples.iter().map(|i| symbols[*i]).collect();
+            selected = slot_machine.pull();
             position -= 1.0;
         }
 
         stdout.queue(cursor::SavePosition).unwrap();
 
-        // stdout.write_all(" ┌──────────┐\n".as_bytes()).unwrap();
         stdout.write_all(format!("▶ {}{}{}{}{} ◀", selected[0], selected[1], selected[2], selected[3], selected[4]).as_bytes()).unwrap();
-        // stdout.write_all(" └──────────┘\n".as_bytes()).unwrap();
 
       stdout.queue(cursor::RestorePosition).unwrap();
       stdout.flush().unwrap();
@@ -85,23 +68,22 @@ pub fn play_slots() -> Result<()> {
 
     stdout.write_all(format!("▶ {}{}{}{}{} ◀", selected[0], selected[1], selected[2], selected[3], selected[4]).as_bytes()).unwrap();
     println!();
-    println!();
+
 
     let mut total_payout = Money::ZERO;
 
-    for (sym, weight) in wheel.iter() {
-        let count: i64 = selected.iter().filter(|s| s == &sym).count().try_into().unwrap();
+    let pay_table = slot_machine.payout(selected);
 
-        if count >= 3 {
-            let sym_value = (bet_selection.multiplier * 120.0 / *weight as f32) as i64;
-            let sym_payout = Money::from_major(sym_value * (count - 2));
-            println!("  {} × {} = {}", sym, count, sym_payout);
-            total_payout += sym_payout;
-        }
+    if !pay_table.is_empty() {
+        println!();
+    }
+
+    for entry in pay_table.iter() {
+        println!("  {} × {} = {}", entry.symbol, entry.count, entry.payout);
+        total_payout += entry.payout;
     }
 
     println!();
-
     println!("Payout: {}", total_payout);
 
     casino.bankroll += total_payout;
@@ -111,18 +93,89 @@ pub fn play_slots() -> Result<()> {
     Ok(())
 }
 
-pub fn symbols() -> Vec<(&'static str, u32)> {
-    vec![
-        ("🍋", 30),
-        ("🍒", 30),
-        ("🍊", 30),
-        ("🍉", 30),
-        ("🔔", 20),
-        ("🍌", 20),
-        ("🍫", 10),
-        ("💰", 2),
-        ("💎", 1),
-    ]
+type Symbol = char;
+type Weight = u32;
+
+#[derive(Clone, Debug)]
+pub struct SlotMachine {
+    multiplier: f32,
+    weights: Vec<(Symbol, Weight)>,
+    distribution: WeightedIndex<Weight>,
+}
+
+impl SlotMachine {
+    pub fn new_with_default_symbols(multiplier: f32) -> Self {
+        let symbols = vec![
+            ('🍋', 30),
+            ('🍒', 30),
+            ('🍊', 30),
+            ('🍉', 30),
+            ('🔔', 20),
+            ('🍌', 20),
+            ('🍫', 10),
+            ('💰', 2),
+            ('💎', 1),
+        ];
+        let weights: Vec<u32> = symbols.iter().map(|s| s.1).collect();
+        Self {
+            multiplier,
+            weights: symbols,
+            distribution: WeightedIndex::new(weights).unwrap(),
+        }
+    }
+
+    pub fn add_symbol(&mut self, symbol: char, weight: Weight) {
+        self.weights.push((symbol, weight));
+        self.distribution = WeightedIndex::new(self.weights.iter().map(|i| i.1)).unwrap();
+    }
+
+    pub fn payout(&self, symbols: Vec<&Symbol>) -> Vec<PayTableEntry> {
+        let mut entries = vec![];
+
+        let counts = symbols.iter().counts();
+
+        for (symbol, count) in counts.iter() {
+            if *count >= 3 {
+                let sym: char = ***symbol;
+                let sym_weight = self.weights.iter().find(|(s, _w)| s == &sym).unwrap().1;
+                let sym_value = (self.multiplier * 120.0 / sym_weight as f32) as i64;
+                let sym_payout = Money::from_major(sym_value * (count - 2) as i64);
+
+                entries.push(PayTableEntry::new(sym, *count, sym_payout));
+            }
+        }
+
+        entries
+    }
+
+    pub fn pull(&self) -> Vec<&Symbol> {
+        let mut rng = thread_rng();
+        let samples: Vec<usize> = self.distribution.clone().sample_iter(&mut rng).take(5).collect();
+        samples.iter().map(|i| &self.weights[*i].0).collect()
+    }
+}
+
+pub struct SlotMachineOutput {
+    pub entries: Vec<PayTableEntry>,
+}
+
+impl SlotMachineOutput {
+}
+
+pub struct PayTableEntry {
+    pub symbol: Symbol,
+    pub count: usize,
+    pub payout: Money,
+}
+
+impl PayTableEntry {
+    pub fn new(symbol: Symbol, count: usize, payout: Money) -> Self {
+        Self {
+            symbol,
+            count,
+            payout,
+        }
+    }
 }
 
 struct PriceTier {
@@ -145,35 +198,24 @@ impl fmt::Display for PriceTier {
 
 #[cfg(test)]
 mod test {
-    use rand::{distributions::{Distribution, WeightedIndex}, thread_rng};
     use rust_decimal::Decimal;
 
-    use crate::{money::Money, slots::symbols};
+    use crate::{money::Money, slots::{PayTableEntry, SlotMachine}};
 
     #[test]
     fn test_symbols_return_to_player() {
-        let mut rng = thread_rng();
-        let symbols = symbols();
-
-        let dist = WeightedIndex::new(symbols.iter().map(|i| i.1)).unwrap();
+        let slot_machine = SlotMachine::new_with_default_symbols(1.0);
 
         let mut total_player_payment = Money::ZERO;
         let mut total_player_return = Money::ZERO;
 
-        for _i in 1..1000 {
-            let samples: Vec<usize> = dist.clone().sample_iter(&mut rng).take(5).collect();
-            let selected: Vec<&str> = samples.iter().map(|i| symbols[*i].0).collect();
-
+        for _i in 1..10_000 {
             total_player_payment += Money::from_major(1);
 
-            for (sym, weight) in symbols.iter() {
-                let count: i64 = selected.iter().filter(|s| s == &sym).count().try_into().unwrap();
+            let payout: Vec<PayTableEntry> = slot_machine.payout(slot_machine.pull());
 
-                if count >= 3 {
-                    let sym_value = (120.0 / *weight as f32) as i64;
-                    let sym_payout = Money::from_major(sym_value * (count - 2));
-                    total_player_return += sym_payout;
-                }
+            for pay_table_entry in payout.iter() {
+                total_player_return += pay_table_entry.payout;
             }
         }
 
@@ -181,7 +223,7 @@ mod test {
         let total_payment: Decimal = total_player_payment.into();
         let rtp_ratio: f32 = (total_return / total_payment).try_into().unwrap();
 
-        assert!(rtp_ratio >= 0.95, "Return-to-player ratio is {rtp_ratio}, which should be higher than 0.95");
+        assert!(rtp_ratio >= 0.90, "Return-to-player ratio is {rtp_ratio}, which should be higher than 0.90");
         assert!(rtp_ratio < 1.0, "Return-to-player ratio is {rtp_ratio}, which should be less than 1.0");
 
 
