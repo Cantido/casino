@@ -1,12 +1,19 @@
 use core::fmt;
-use std::{io::{stdout, Write}, thread::sleep, time::Duration};
+use std::{
+    io::{stdout, Write},
+    thread::sleep,
+    time::Duration,
+};
 
 use anyhow::Result;
 use colored::*;
 use crossterm::{cursor, terminal, QueueableCommand};
 use inquire::Select;
 use itertools::Itertools;
-use rand::{distributions::{Distribution, WeightedIndex}, thread_rng, Rng};
+use rand::{
+    distributions::{Distribution, WeightedIndex},
+    thread_rng, Rng,
+};
 use rust_decimal::Decimal;
 
 use crate::{blackjack::Casino, money::Money};
@@ -19,16 +26,24 @@ pub fn play_slots() -> Result<()> {
         PriceTier::new(Money::from_major(10)),
         PriceTier::new(Money::from_major(100)),
         PriceTier::new(Money::from_major(1_000)),
-        PriceTier::new(Money::from_major(5_000))
+        PriceTier::new(Money::from_major(5_000)),
     ];
-    let bet_selection = Select::new(format!("Which slot machine to use? (you have {}) ", casino.bankroll).as_str(), options).prompt().unwrap();
+    let bet_selection = Select::new(
+        format!("Which slot machine to use? (you have {}) ", casino.bankroll).as_str(),
+        options,
+    )
+    .prompt()
+    .unwrap();
     let bet_amount = bet_selection.cost;
 
     casino.bankroll -= bet_amount;
     casino.stats.slots.record_pull(bet_amount);
 
     casino.save();
-    println!("{}", format!("* You insert your money into the {bet_amount} slot machine.").dimmed());
+    println!(
+        "{}",
+        format!("* You insert your money into the {bet_amount} slot machine.").dimmed()
+    );
     println!("You now have {} in the bank", casino.bankroll);
     sleep(Duration::from_millis(600));
     println!("{}", "* You pull the arm of the slot machine.".dimmed());
@@ -54,23 +69,40 @@ pub fn play_slots() -> Result<()> {
 
         stdout.queue(cursor::SavePosition).unwrap();
 
-        stdout.write_all(format!("▶ {}{}{}{}{} ◀", selected[0], selected[1], selected[2], selected[3], selected[4]).as_bytes()).unwrap();
+        stdout
+            .write_all(
+                format!(
+                    "▶ {}{}{}{}{} ◀",
+                    selected[0], selected[1], selected[2], selected[3], selected[4]
+                )
+                .as_bytes(),
+            )
+            .unwrap();
 
-      stdout.queue(cursor::RestorePosition).unwrap();
-      stdout.flush().unwrap();
+        stdout.queue(cursor::RestorePosition).unwrap();
+        stdout.flush().unwrap();
 
-      sleep(Duration::from_millis(16));
+        sleep(Duration::from_millis(16));
 
-      velocity += accel * (16.0 / 1000.0);
-      position += velocity * (16.0 / 1000.0);
+        velocity += accel * (16.0 / 1000.0);
+        position += velocity * (16.0 / 1000.0);
 
-      stdout.queue(cursor::RestorePosition).unwrap();
-      stdout.queue(terminal::Clear(terminal::ClearType::FromCursorDown)).unwrap();
+        stdout.queue(cursor::RestorePosition).unwrap();
+        stdout
+            .queue(terminal::Clear(terminal::ClearType::FromCursorDown))
+            .unwrap();
     }
 
-    stdout.write_all(format!("▶ {}{}{}{}{} ◀", selected[0], selected[1], selected[2], selected[3], selected[4]).as_bytes()).unwrap();
+    stdout
+        .write_all(
+            format!(
+                "▶ {}{}{}{}{} ◀",
+                selected[0], selected[1], selected[2], selected[3], selected[4]
+            )
+            .as_bytes(),
+        )
+        .unwrap();
     println!();
-
 
     let mut total_payout = Money::ZERO;
 
@@ -157,7 +189,12 @@ impl SlotMachine {
 
     pub fn pull(&self) -> Vec<&Symbol> {
         let mut rng = thread_rng();
-        let samples: Vec<usize> = self.distribution.clone().sample_iter(&mut rng).take(5).collect();
+        let samples: Vec<usize> = self
+            .distribution
+            .clone()
+            .sample_iter(&mut rng)
+            .take(5)
+            .collect();
         samples.iter().map(|i| &self.weights[*i].0).collect()
     }
 }
@@ -166,8 +203,7 @@ pub struct SlotMachineOutput {
     pub entries: Vec<PayTableEntry>,
 }
 
-impl SlotMachineOutput {
-}
+impl SlotMachineOutput {}
 
 pub struct PayTableEntry {
     pub symbol: Symbol,
@@ -193,7 +229,10 @@ struct PriceTier {
 impl PriceTier {
     pub fn new(cost: Money) -> Self {
         let mult: Decimal = cost.try_into().unwrap();
-        Self { cost, multiplier: mult.try_into().unwrap()  }
+        Self {
+            cost,
+            multiplier: mult.try_into().unwrap(),
+        }
     }
 }
 
@@ -207,7 +246,10 @@ impl fmt::Display for PriceTier {
 mod test {
     use rust_decimal::Decimal;
 
-    use crate::{money::Money, slots::{PayTableEntry, SlotMachine}};
+    use crate::{
+        money::Money,
+        slots::{PayTableEntry, SlotMachine},
+    };
 
     #[test]
     fn test_symbols_return_to_player() {
@@ -230,9 +272,13 @@ mod test {
         let total_payment: Decimal = total_player_payment.into();
         let rtp_ratio: f32 = (total_return / total_payment).try_into().unwrap();
 
-        assert!(rtp_ratio >= 0.90, "Return-to-player ratio is {rtp_ratio}, which should be higher than 0.90");
-        assert!(rtp_ratio < 1.0, "Return-to-player ratio is {rtp_ratio}, which should be less than 1.0");
-
-
+        assert!(
+            rtp_ratio >= 0.90,
+            "Return-to-player ratio is {rtp_ratio}, which should be higher than 0.90"
+        );
+        assert!(
+            rtp_ratio < 1.0,
+            "Return-to-player ratio is {rtp_ratio}, which should be less than 1.0"
+        );
     }
 }
