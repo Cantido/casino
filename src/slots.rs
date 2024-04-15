@@ -25,8 +25,8 @@ pub fn play_slots() -> Result<()> {
 
     casino.bankroll -= bet_amount;
     casino.save();
-    println!("You now have {} in the bank", casino.bankroll);
     println!("{}", format!("* You insert your money into the {bet_amount} slot machine.").dimmed());
+    println!("You now have {} in the bank", casino.bankroll);
     sleep(Duration::from_millis(600));
     println!("{}", "* You pull the arm of the slot machine.".dimmed());
     sleep(Duration::from_millis(600));
