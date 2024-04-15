@@ -6,10 +6,16 @@ use crate::money::Money;
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Statistics {
+    #[serde(default)]
     pub biggest_bankroll: Money,
+    #[serde(default)]
     pub times_bankrupted: u32,
+    #[serde(default)]
     pub blackjack: BlackjackStatistics,
+    #[serde(default)]
     pub roulette: RouletteStatistics,
+    #[serde(default)]
+    pub slots: SlotMachineStatistics,
 }
 
 impl Statistics {
@@ -41,6 +47,28 @@ impl Statistics {
       self.times_bankrupted += 1;
     }
   }
+}
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct SlotMachineStatistics {
+    pub total_pulls: u32,
+    pub money_won: Money,
+    pub money_spent: Money,
+    pub biggest_jackpot: Money,
+}
+
+impl SlotMachineStatistics {
+    pub fn record_pull(&mut self, amount: Money) {
+        self.total_pulls += 1;
+        self.money_spent += amount;
+    }
+
+    pub fn record_win(&mut self, amount: Money) {
+        self.money_won += amount;
+        if self.biggest_jackpot < amount {
+            self.biggest_jackpot = amount;
+        }
+    }
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]

@@ -25,6 +25,8 @@ pub fn play_slots() -> Result<()> {
     let bet_amount = bet_selection.cost;
 
     casino.bankroll -= bet_amount;
+    casino.stats.slots.record_pull(bet_amount);
+
     casino.save();
     println!("{}", format!("* You insert your money into the {bet_amount} slot machine.").dimmed());
     println!("You now have {} in the bank", casino.bankroll);
@@ -87,6 +89,11 @@ pub fn play_slots() -> Result<()> {
     println!("Payout: {}", total_payout);
 
     casino.bankroll += total_payout;
+    casino.stats.update_bankroll(casino.bankroll);
+
+    if total_payout > Money::ZERO {
+        casino.stats.slots.record_win(total_payout);
+    }
 
     casino.save();
 

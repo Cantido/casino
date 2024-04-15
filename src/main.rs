@@ -61,6 +61,13 @@ fn main() -> Result<()> {
       println!("  Total money lost........{:.>15}", stats.roulette.money_lost);
       println!("  Biggest win.............{:.>15}", stats.roulette.biggest_win);
       println!("  Biggest loss............{:.>15}", stats.roulette.biggest_loss);
+
+      println!();
+      println!("Slots");
+      println!("  Total pulls.............{:.>15}", stats.slots.total_pulls);
+      println!("  Total money spent.......{:.>15}", stats.slots.money_spent);
+      println!("  Total money won.........{:.>15}", stats.slots.money_won);
+      println!("  Biggest jackpot.........{:.>15}", stats.slots.biggest_jackpot);
     },
     Some(Commands::Blackjack) => {
       let mut state = Casino::from_filesystem()?;
