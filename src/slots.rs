@@ -22,12 +22,21 @@ pub fn play_slots() -> Result<()> {
     let mut casino = Casino::from_filesystem()?;
 
     let options = vec![
-        PriceTier::new(Money::from_major(1)),
-        PriceTier::new(Money::from_major(10)),
-        PriceTier::new(Money::from_major(100)),
-        PriceTier::new(Money::from_major(1_000)),
-        PriceTier::new(Money::from_major(5_000)),
-    ];
+        Money::from_major(1),
+        Money::from_major(5),
+        Money::from_major(10),
+        Money::from_major(25),
+        Money::from_major(100),
+        Money::from_major(500),
+        Money::from_major(1_000),
+        Money::from_major(5_000),
+        Money::from_major(25_000),
+        Money::from_major(100_000),
+    ].iter()
+        .filter(|&m| *m <= casino.bankroll)
+        .map(|m| PriceTier::new(*m))
+        .collect();
+
     let bet_selection = Select::new(
         format!("Which slot machine to use? (you have {}) ", casino.bankroll).as_str(),
         options,
