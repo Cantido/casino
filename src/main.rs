@@ -96,7 +96,7 @@ fn main() -> Result<()> {
       fs::remove_file(&config.stats_path)?;
     }
     None => {
-      let options = vec!["Blackjack", "Roulette"];
+      let options = vec!["Blackjack", "Roulette", "Slots"];
 
       let ans = Select::new("What would you like to play?", options).prompt();
 
@@ -107,6 +107,9 @@ fn main() -> Result<()> {
         },
         Ok("Roulette") => {
           play_roulette()?;
+        },
+        Ok("Slots") => {
+          play_slots()?;
         },
         Ok(_) => panic!("Unknown option"),
         Err(_) => panic!("Error fetching your choice"),
