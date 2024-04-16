@@ -92,6 +92,14 @@ impl Mul<i64> for Money {
     }
 }
 
+impl Mul<u32> for Money {
+    type Output = Money;
+
+    fn mul(self, other: u32) -> Money {
+        Money(self.0.mul(Decimal::new(other.into(), 0)))
+    }
+}
+
 impl Mul<Ratio<i64>> for Money {
     type Output = Money;
 

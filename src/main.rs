@@ -3,6 +3,7 @@ use casino::blackjack::Casino;
 use casino::config::Config;
 use casino::roulette::play_roulette;
 use casino::slots::play_slots;
+use casino::craps::play_craps;
 use clap::{Parser, Subcommand};
 use inquire::Select;
 use std::fs;
@@ -22,6 +23,8 @@ enum Commands {
     Roulette,
     /// Spin a slot machine
     Slots,
+    /// Play a game of craps
+    Craps,
     /// Show lifetime statistics
     Stats,
     /// Shuffle the persisted deck state
@@ -121,6 +124,9 @@ fn main() -> Result<()> {
         Some(Commands::Slots) => {
             play_slots()?;
         }
+        Some(Commands::Craps) => {
+            play_craps()?;
+        }
         Some(Commands::Shuffle) => {
             let mut state = Casino::from_filesystem()?;
             state.shuffle_shoe();
@@ -138,7 +144,7 @@ fn main() -> Result<()> {
             fs::remove_file(&config.stats_path)?;
         }
         None => {
-            let options = vec!["Blackjack", "Roulette", "Slots"];
+            let options = vec!["Blackjack", "Roulette", "Slots", "Craps"];
 
             let ans = Select::new("What would you like to play?", options).prompt();
 
@@ -146,13 +152,16 @@ fn main() -> Result<()> {
                 Ok("Blackjack") => {
                     let mut state = Casino::from_filesystem()?;
                     state.play_blackjack()?
-                }
+                },
                 Ok("Roulette") => {
                     play_roulette()?;
-                }
+                },
                 Ok("Slots") => {
                     play_slots()?;
-                }
+                },
+                Ok("Craps") => {
+                    play_craps()?;
+                },
                 Ok(_) => panic!("Unknown option"),
                 Err(_) => panic!("Error fetching your choice"),
             }
