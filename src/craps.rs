@@ -83,7 +83,7 @@ pub fn play_craps() -> Result<()> {
 
         match loop_selection {
             "Place another bet" => {
-                let bet_kind_options = vec![BetKind::Come, BetKind::DontCome];
+                let bet_kind_options = vec![BetKind::Come, BetKind::DontCome, BetKind::Field];
 
                 let come_bet_kind = Select::new("What kind of bet would you like to place?", bet_kind_options).prompt().unwrap();
 
@@ -115,24 +115,31 @@ pub fn play_craps() -> Result<()> {
 
         let (wins, rest): (Vec<Bet>, Vec<Bet>) = bets.into_iter().partition(|b| b.is_win(roll));
         let (losses, rest): (Vec<Bet>, Vec<Bet>) = rest.into_iter().partition(|b| b.is_lose(roll));
+        let (expired, rest): (Vec<Bet>, Vec<Bet>) = rest.into_iter().partition(|b| b.duration() == BetDuration::SingleRoll);
 
         for bet in wins.iter() {
             println!("A {}! Your {} bet wins!", roll, bet.kind);
-            let payout = bet.payout(point);
+            let payout = bet.payout(roll);
             casino.add_bankroll(payout);
             println!("You receive {}. You now have {}", payout, casino.bankroll);
         }
 
         for bet in losses.iter() {
-            println!("A {}! Your {} bet loses!", point, bet.kind);
+            println!("A {}! Your {} bet loses!", roll, bet.kind);
+            casino.subtract_bankroll(bet.amount)?;
+            println!("You lose {}. You now have {}", bet.amount, casino.bankroll);
+        }
+
+        for bet in expired.iter() {
+            println!("Your {} bet expires!", bet.kind);
             casino.subtract_bankroll(bet.amount)?;
             println!("You lose {}. You now have {}", bet.amount, casino.bankroll);
         }
 
         bets = rest;
 
-        if roll == 7 {
-            println!("A 7! The round is over!");
+        if roll == point {
+            println!("A {}! The round is over!", roll);
 
             if !bets.is_empty() {
                 println!("Remaining bets lose:");
@@ -160,11 +167,18 @@ pub fn play_craps() -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum BetDuration {
+    MultiRoll,
+    SingleRoll,
+}
+
 enum BetKind {
     PassLine,
     DontPass,
     Come,
     DontCome,
+    Field,
 }
 
 impl fmt::Display for BetKind {
@@ -174,6 +188,7 @@ impl fmt::Display for BetKind {
             Self::DontPass => write!(f, "Don't Pass"),
             Self::Come => write!(f, "Come"),
             Self::DontCome => write!(f, "Don't Come"),
+            Self::Field => write!(f, "Field"),
         }
     }
 }
@@ -194,6 +209,7 @@ impl Bet {
             BetKind::DontPass => vec![2, 3, 12].contains(&roll),
             BetKind::Come => vec![7, 11].contains(&roll),
             BetKind::DontCome => vec![2, 3, 12].contains(&roll),
+            BetKind::Field => vec![2, 3, 4, 9, 10, 11, 12].contains(&roll),
         }
     }
 
@@ -203,15 +219,32 @@ impl Bet {
             BetKind::DontPass => vec![7, 11].contains(&roll),
             BetKind::Come => vec![2, 3, 12].contains(&roll),
             BetKind::DontCome => vec![7, 11].contains(&roll),
+            BetKind::Field => vec![5, 6, 7, 8].contains(&roll),
         }
     }
 
-    pub fn payout(&self, _roll: u8) -> Money {
+    pub fn payout(&self, roll: u8) -> Money {
         match self.kind {
             BetKind::PassLine => self.amount,
             BetKind::DontPass => self.amount,
             BetKind::Come => self.amount,
             BetKind::DontCome => self.amount,
+            BetKind::Field => {
+                match roll {
+                    2 | 12 => self.amount * 2i64,
+                    _ => self.amount,
+                }
+            },
+        }
+    }
+
+    pub fn duration(&self) -> BetDuration {
+        match self.kind {
+            BetKind::PassLine => BetDuration::MultiRoll,
+            BetKind::DontPass => BetDuration::MultiRoll,
+            BetKind::Come => BetDuration::MultiRoll,
+            BetKind::DontCome => BetDuration::MultiRoll,
+            BetKind::Field => BetDuration::SingleRoll,
         }
     }
 }
