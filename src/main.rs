@@ -27,8 +27,6 @@ enum Commands {
     Craps,
     /// Show lifetime statistics
     Stats,
-    /// Shuffle the persisted deck state
-    Shuffle,
     /// Show currency balance
     Balance,
     /// Clears game state and statistics
@@ -126,11 +124,6 @@ fn main() -> Result<()> {
         }
         Some(Commands::Craps) => {
             play_craps()?;
-        }
-        Some(Commands::Shuffle) => {
-            let mut state = Casino::from_filesystem()?;
-            state.shuffle_shoe();
-            state.save();
         }
         Some(Commands::Balance) => {
             let state = Casino::from_filesystem()?;

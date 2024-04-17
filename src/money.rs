@@ -2,7 +2,7 @@ use num::rational::Ratio;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, SubAssign};
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
 #[derive(Clone, Copy, Deserialize, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Serialize)]
@@ -70,17 +70,25 @@ impl AddAssign for Money {
     }
 }
 
-impl Div<i64> for Money {
-    type Output = Money;
+impl Sub for Money {
+    type Output = Self;
 
-    fn div(self, other: i64) -> Self::Output {
-        Money(self.0.div(Decimal::new(other, 0)).round_dp(2))
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0.sub(rhs.0))
     }
 }
 
 impl SubAssign for Money {
     fn sub_assign(&mut self, other: Money) {
         self.0.sub_assign(other.0);
+    }
+}
+
+impl Div<i64> for Money {
+    type Output = Money;
+
+    fn div(self, other: i64) -> Self::Output {
+        Money(self.0.div(Decimal::new(other, 0)).round_dp(2))
     }
 }
 
