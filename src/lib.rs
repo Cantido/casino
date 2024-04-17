@@ -6,3 +6,4 @@ pub mod money;
 pub mod roulette;
 pub mod slots;
 pub mod statistics;
+

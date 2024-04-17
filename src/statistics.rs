@@ -39,6 +39,7 @@ impl Statistics {
     }
 
     pub fn save(&self, stats_path: &Path) -> Result<()> {
+        fs::create_dir_all(stats_path.parent().unwrap()).expect("Couldn't create stats directory!");
         write(stats_path, toml::to_string(&self)?)?;
         Ok(())
     }

@@ -2,7 +2,7 @@ use crate::cards::{shoe, Card, Value};
 use crate::config::Config;
 use crate::money::Money;
 use crate::statistics::Statistics;
-use anyhow::ensure;
+use anyhow::{ensure, Context};
 use anyhow::Result;
 use colored::*;
 use inquire::{Confirm, Select, Text};
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use spinners::{Spinner, Spinners};
 use std::fmt;
 use std::fs;
+use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -309,29 +310,9 @@ impl Casino {
             bankroll: self.bankroll,
             shoe: self.shoe.clone(),
         };
-        let save_dir = self
-            .config
-            .save_path
-            .parent()
-            .expect("Couldn't find save directory!");
-        fs::create_dir_all(save_dir).expect("Couldn't create save directory!");
-        fs::write(
-            &self.config.save_path,
-            toml::to_string(&state).expect("Couldn't serialize save data!"),
-        )
-        .expect("Couldn't write save data to save directory!");
 
-        let stats_dir = self
-            .config
-            .stats_path
-            .parent()
-            .expect("Couldn't access stats path!");
-        fs::create_dir_all(stats_dir).expect("Couldn't create stats directory!");
-        fs::write(
-            &self.config.stats_path,
-            toml::to_string(&self.stats).unwrap(),
-        )
-        .expect("Couldn't write to stats file!");
+        state.save(&self.config.save_path).expect("Couldn't save config!");
+        self.stats.save(&self.config.stats_path).expect("Couldn't save stats!");
     }
 
     pub fn play_blackjack(&mut self) -> Result<()> {
@@ -633,4 +614,15 @@ impl BlackjackConfig {
 struct CasinoState {
     bankroll: Money,
     shoe: Vec<Card>,
+}
+
+impl CasinoState {
+    pub fn save(&self, path: &Path) -> Result<()> {
+        fs::create_dir_all(path.parent().unwrap())
+            .with_context(|| "Couldn't create save directory")?;
+        fs::write(
+            path,
+            toml::to_string(&self).expect("Couldn't serialize save data!"),
+        ).with_context(|| "Failed to write state to path")
+    }
 }
