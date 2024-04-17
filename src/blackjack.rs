@@ -1,4 +1,4 @@
-use crate::cards::{shoe, Card, Value};
+use crate::cards::{Card, Shoe, Value};
 use crate::config::Config;
 use crate::money::Money;
 use crate::statistics::Statistics;
@@ -135,7 +135,7 @@ impl fmt::Display for Hand {
 pub struct Casino {
     pub config: Config,
     pub bankroll: Money,
-    shoe: Vec<Card>,
+    shoe: Shoe,
     insurance_bet: Money,
     splitting: bool,
     pub stats: Statistics,
@@ -148,7 +148,7 @@ impl Casino {
         Self {
             config: config.clone(),
             bankroll: config.mister_greens_gift,
-            shoe: shoe(config.blackjack.shoe_count),
+            shoe: Shoe::new(config.blackjack.shoe_count, config.blackjack.shuffle_at_penetration),
             dealer_hand: Hand::new_hidden(1),
             player_hands: vec![Hand::new()],
             ..Default::default()
@@ -181,27 +181,17 @@ impl Casino {
         self.stats = Statistics::load(&self.config.stats_path).unwrap();
     }
 
-    fn draw_card(&mut self) -> Card {
-        let card = self.shoe.pop().unwrap();
-
-        if self.shoe.len() < self.config.blackjack.shuffle_shoe_threshold_count() {
-            self.shuffle_shoe();
-        }
-
-        return card;
-    }
-
     pub fn shuffle_shoe(&mut self) {
-        self.shoe = shoe(self.config.blackjack.shoe_count);
+        self.shoe.shuffle();
     }
 
     fn card_to_dealer(&mut self) {
-        let card = self.draw_card();
+        let card = self.shoe.draw_card();
         self.dealer_hand.push(card);
     }
 
     fn card_to_player(&mut self, hand_index: usize) {
-        let card = self.draw_card();
+        let card = self.shoe.draw_card();
         self.player_hands[hand_index].push(card);
     }
 
@@ -613,7 +603,7 @@ impl BlackjackConfig {
 #[derive(Deserialize, Debug, Serialize)]
 struct CasinoState {
     bankroll: Money,
-    shoe: Vec<Card>,
+    shoe: Shoe,
 }
 
 impl CasinoState {

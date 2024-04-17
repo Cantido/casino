@@ -112,6 +112,52 @@ impl fmt::Display for Card {
     }
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Shoe {
+    deck_count: u8,
+    reshuffle_threshold: f32,
+    cards: Vec<Card>,
+}
+
+impl Shoe {
+    pub fn new(deck_count: u8, reshuffle_threshold: f32) -> Self {
+        Self {
+            deck_count,
+            reshuffle_threshold,
+            cards: Self::build_cards(deck_count),
+        }
+    }
+
+
+    pub fn draw_card(&mut self) -> Card {
+        if self.cards.len() < ((self.deck_count * 52) as f32 * self.reshuffle_threshold) as usize {
+            self.cards = Self::build_cards(self.deck_count);
+        }
+
+        return self.cards.pop().unwrap();
+    }
+
+    pub fn shuffle(&mut self) {
+        self.cards = Self::build_cards(self.deck_count);
+    }
+
+    fn build_cards(deck_count: u8) -> Vec<Card> {
+        let deck = deck();
+
+        let mut shoe = vec![];
+
+        for _i in 1..deck_count {
+            let mut next_deck = deck.clone();
+            shoe.append(&mut next_deck);
+        }
+
+        let mut rng = thread_rng();
+        shoe.shuffle(&mut rng);
+
+        shoe
+    }
+}
+
 pub fn deck() -> Vec<Card> {
     let suits = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades];
     let values = [
@@ -148,21 +194,6 @@ pub fn deck() -> Vec<Card> {
     return cards;
 }
 
-pub fn shoe(deck_count: u8) -> Vec<Card> {
-    let deck = deck();
-
-    let mut shoe = vec![];
-
-    for _i in 1..deck_count {
-        let mut next_deck = deck.clone();
-        shoe.append(&mut next_deck);
-    }
-
-    let mut rng = thread_rng();
-    shoe.shuffle(&mut rng);
-    return shoe;
-}
-
 pub fn random_card() -> Card {
     let suits = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades];
     let values = [
@@ -186,7 +217,7 @@ pub fn random_card() -> Card {
     let value = values.choose(&mut rng).unwrap().clone();
 
     return Card {
-        suit: suit,
-        value: value,
+        suit,
+        value,
     };
 }
