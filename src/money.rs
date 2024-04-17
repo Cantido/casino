@@ -1,3 +1,4 @@
+use anyhow::Context;
 use num::rational::Ratio;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -7,9 +8,6 @@ use std::str::FromStr;
 
 #[derive(Clone, Copy, Deserialize, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct Money(#[serde(with = "rust_decimal::serde::str")] Decimal);
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ParseMoneyError;
 
 impl Money {
     pub const ZERO: Money = Money(Decimal::ZERO);
@@ -47,12 +45,12 @@ impl fmt::Display for Money {
 }
 
 impl FromStr for Money {
-    type Err = ParseMoneyError;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Decimal::from_str(s)
             .map(|dec| Self(dec.round_dp(2)))
-            .map_err(|_| ParseMoneyError)
+            .with_context(|| "Failed to decode string into decimal")
     }
 }
 

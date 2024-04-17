@@ -1,6 +1,6 @@
 use crate::blackjack::BlackjackConfig;
 use crate::money::Money;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -41,15 +41,17 @@ impl Config {
     pub fn init_get() -> Result<Self> {
         let path = Self::default_path();
 
-        if let Ok(config) = Self::from_path(&path) {
-            // Save the config to update it to latest structure
-            config.save(&path)?;
-            return Ok(config);
+        if path.try_exists()? {
+            Self::from_path(&path)
+                .with_context(|| "Failed to load config from file")
         } else {
-            let config = Self::default();
-            config.save(&path)?;
+            let dir = path.parent().expect("Expected config path to have a parent directory.");
+            fs::create_dir_all(dir)?;
 
-            return Ok(config);
+            let config = Self::default();
+            config.save(&path)
+                .with_context(|| "Failed to initialize config file")?;
+            Ok(config)
         }
     }
 

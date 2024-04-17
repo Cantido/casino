@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use casino::blackjack::Casino;
 use casino::config::Config;
 use casino::roulette::play_roulette;
@@ -113,8 +113,11 @@ fn main() -> Result<()> {
             );
         }
         Some(Commands::Blackjack) => {
-            let mut state = Casino::from_filesystem()?;
-            state.play_blackjack()?;
+            let mut state = Casino::from_filesystem()
+                .with_context(|| "Failed to load Casino configuration from filesystem.")?;
+
+            state.play_blackjack()
+                .with_context(|| "Failed to finish a game of Blackjack")?;
         }
         Some(Commands::Roulette) => {
             play_roulette()?;
@@ -133,8 +136,16 @@ fn main() -> Result<()> {
             let cfg_path = Config::default_path();
             let config = Config::from_path(&cfg_path)?;
 
-            fs::remove_file(&config.save_path)?;
-            fs::remove_file(&config.stats_path)?;
+            if config.save_path.try_exists()? {
+                println!("Deleting save file at {}", config.save_path.display());
+                fs::remove_file(&config.save_path)
+                    .with_context(|| "Failed to remove save file")?;
+            }
+            if config.stats_path.try_exists()? {
+                println!("Deleting stats file at {}", config.stats_path.display());
+                fs::remove_file(&config.stats_path)
+                    .with_context(|| "Failed to remove stats file")?;
+            }
         }
         None => {
             let options = vec!["Blackjack", "Roulette", "Slots", "Craps"];

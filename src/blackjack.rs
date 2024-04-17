@@ -2,7 +2,7 @@ use crate::cards::{Card, Shoe, Value};
 use crate::config::Config;
 use crate::money::Money;
 use crate::statistics::Statistics;
-use anyhow::{ensure, Context};
+use anyhow::{bail, ensure, Context};
 use anyhow::Result;
 use colored::*;
 use inquire::{Confirm, Select, Text};
@@ -273,31 +273,23 @@ impl Casino {
     }
 
     pub fn from_filesystem() -> Result<Self> {
-        let config = Config::init_get().expect("Couldn't init config file");
-        let mut casino = Self::new(config);
+        let config = Config::init_get()?;
+        let mut casino = Self::new(config.clone());
 
-        casino.load_state();
-        casino.load_stats();
+        casino.blackjack = Blackjack::new(config.blackjack.clone());
+
+        if config.save_path.try_exists()? {
+            let save_state = CasinoState::load(&config.save_path)?;
+            casino.blackjack.shoe = save_state.shoe;
+            casino.bankroll = save_state.bankroll;
+        } else {
+            casino.bankroll = config.mister_greens_gift;
+        }
+
+        Statistics::init(&config.stats_path)?;
+        casino.stats = Statistics::load(&config.stats_path)?;
 
         Ok(casino)
-    }
-
-    fn load_state(&mut self) {
-        if let Ok(state_string) = fs::read_to_string(&self.config.save_path) {
-            let state: CasinoState = toml::from_str(&state_string).unwrap();
-
-            self.bankroll = state.bankroll;
-
-            self.blackjack = Blackjack::new(self.blackjack.config.clone());
-            self.blackjack.set_shoe(state.shoe);
-        } else {
-            println!("Couldn't read save file!");
-        }
-    }
-
-    fn load_stats(&mut self) {
-        Statistics::init(&self.config.stats_path).unwrap();
-        self.stats = Statistics::load(&self.config.stats_path).unwrap();
     }
 
     pub fn add_bankroll(&mut self, amount: Money) {
@@ -328,19 +320,16 @@ impl Casino {
         println!("Your money: {}", self.bankroll);
 
         loop {
-            let bet_result = Text::new("How much will you bet?").prompt();
+            let bet_text = Text::new("How much will you bet?").prompt()?;
 
-            match bet_result {
-                Ok(bet_text) => {
-                    let bet = bet_text.trim().parse::<Money>().unwrap();
-                    if self.bankroll >= bet {
-                        self.blackjack.set_bet(bet);
-                        break;
-                    } else {
-                        println!("You can't bet that amount, try again.");
-                    }
-                }
-                Err(_) => panic!("Error getting your answer."),
+            let bet = bet_text.trim().parse::<Money>()
+                .with_context(|| "Failed to parse prompt text into an integer")?;
+
+            if self.bankroll >= bet {
+                self.blackjack.set_bet(bet);
+                break;
+            } else {
+                println!("You can't bet that amount, try again.");
             }
         }
 
@@ -356,19 +345,17 @@ impl Casino {
         println!("Your hand: {}", self.blackjack.player_hands[0]);
 
         if self.bankroll >= self.blackjack.bet && self.blackjack.can_place_insurance_bet() {
-            let ans = Confirm::new("Insurance?").with_default(false).prompt();
+            let take_insurance = Confirm::new("Insurance?").with_default(false).prompt()?;
 
-            match ans {
-                Ok(true) => {
-                    self.bankroll -= self.blackjack.bet;
-                    self.blackjack.place_insurance_bet();
-                    println!(
-                        "You make an additional {} insurance bet.",
-                        self.blackjack.bet,
-                    );
-                }
-                Ok(false) => println!("You choose for forego making an insurance bet."),
-                Err(_) => panic!("Error getting your answer"),
+            if take_insurance {
+                self.bankroll -= self.blackjack.bet;
+                self.blackjack.place_insurance_bet();
+                println!(
+                    "You make an additional {} insurance bet.",
+                    self.blackjack.bet,
+                );
+            } else {
+                println!("You choose for forego making an insurance bet.");
             }
         }
 
@@ -385,10 +372,10 @@ impl Casino {
 
             let prompt = format!("What will you do with hand № {}?", self.blackjack.current_hand_index() + 1);
 
-            let ans = Select::new(&prompt, options).prompt();
+            let ans = Select::new(&prompt, options).prompt()?;
 
             match ans {
-                Ok("Hit") => {
+                "Hit" => {
                     let mut sp = Spinner::new(Spinners::Dots, "Dealing another card...".into());
                     sleep(Duration::from_millis(1_000));
                     sp.stop_with_message(
@@ -397,7 +384,7 @@ impl Casino {
 
                     self.blackjack.hit();
                 }
-                Ok("Double") => {
+                "Double" => {
                     println!(
                         "Your bet is now {}, and you will only receive one more card.",
                         self.blackjack.bet * 2u32
@@ -411,7 +398,7 @@ impl Casino {
                     self.bankroll -= self.blackjack.bet;
                     self.blackjack.double_down();
                 }
-                Ok("Split") => {
+                "Split" => {
                     println!(
                         "You split hand № {} and place an additional {} bet.",
                         self.blackjack.current_hand_index() + 1,
@@ -428,11 +415,10 @@ impl Casino {
                     self.blackjack.split();
 
                 }
-                Ok("Stand") => {
+                "Stand" => {
                     self.blackjack.stand();
                 }
-                Ok(_) => panic!("Unknown answer received"),
-                Err(_) => panic!("Error getting your answer."),
+                _ => bail!("Unknown answer received"),
             }
 
             println!(
@@ -625,6 +611,14 @@ struct CasinoState {
 }
 
 impl CasinoState {
+    pub fn load(path: &Path) -> Result<Self> {
+        let state_string = fs::read_to_string(path)?;
+        let state: CasinoState = toml::from_str(&state_string)
+            .with_context(|| "Unable to parse Casino state from file")?;
+
+        Ok(state)
+    }
+
     pub fn save(&self, path: &Path) -> Result<()> {
         fs::create_dir_all(path.parent().unwrap())
             .with_context(|| "Couldn't create save directory")?;
