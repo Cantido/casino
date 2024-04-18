@@ -48,7 +48,7 @@ pub fn play_slots() -> Result<()> {
     casino.bankroll -= bet_amount;
     casino.stats.slots.record_pull(bet_amount);
 
-    casino.save();
+    casino.save()?;
     println!(
         "{}",
         format!("* You insert your money into the {bet_amount} slot machine.").dimmed()
@@ -136,7 +136,7 @@ pub fn play_slots() -> Result<()> {
         casino.stats.slots.record_win(total_payout);
     }
 
-    casino.save();
+    casino.save()?;
 
     Ok(())
 }

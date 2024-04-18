@@ -126,16 +126,24 @@ impl fmt::Display for Hand {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Blackjack {
+    #[serde(skip)]
     config: BlackjackConfig,
     shoe: Shoe,
+    #[serde(skip)]
     dealer_hand: Hand,
+    #[serde(skip)]
     player_hands: Vec<Hand>,
+    #[serde(skip)]
     bet: Money,
+    #[serde(skip)]
     insurance: bool,
+    #[serde(skip)]
     splitting: bool,
+    #[serde(skip)]
     doubling_down: bool,
+    #[serde(skip)]
     current_hand: usize,
 }
 
@@ -254,11 +262,12 @@ impl Blackjack {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Casino {
     pub config: Config,
     pub bankroll: Money,
     blackjack: Blackjack,
+    #[serde(skip)]
     pub stats: Statistics,
 }
 
@@ -274,17 +283,14 @@ impl Casino {
 
     pub fn from_filesystem() -> Result<Self> {
         let config = Config::init_get()?;
-        let mut casino = Self::new(config.clone());
 
-        casino.blackjack = Blackjack::new(config.blackjack.clone());
 
-        if config.save_path.try_exists()? {
-            let save_state = CasinoState::load(&config.save_path)?;
-            casino.blackjack.shoe = save_state.shoe;
-            casino.bankroll = save_state.bankroll;
-        } else {
-            casino.bankroll = config.mister_greens_gift;
-        }
+        let mut casino =
+            if config.save_path.try_exists()? {
+                Self::load(&config.save_path)?
+            } else {
+                Self::new(config.clone())
+            };
 
         Statistics::init(&config.stats_path)?;
         casino.stats = Statistics::load(&config.stats_path)?;
@@ -306,14 +312,28 @@ impl Casino {
         Ok(())
     }
 
-    pub fn save(&self) {
-        let state = CasinoState {
-            bankroll: self.bankroll,
-            shoe: self.blackjack.shoe.clone(),
-        };
+    pub fn load(path: &Path) -> Result<Self> {
+        let state_string = fs::read_to_string(path)?;
+        let state: Self = toml::from_str(&state_string)
+            .with_context(|| "Unable to parse Casino state from file")?;
 
-        state.save(&self.config.save_path).expect("Couldn't save config!");
-        self.stats.save(&self.config.stats_path).expect("Couldn't save stats!");
+        Ok(state)
+    }
+
+    pub fn save(&self) -> Result<()> {
+        let path = &self.config.save_path;
+
+        fs::create_dir_all(path.parent().unwrap())
+            .with_context(|| "Couldn't create save directory")?;
+        fs::write(
+            path,
+            toml::to_string(&self).expect("Couldn't serialize save data!"),
+        ).with_context(|| "Failed to write state to path")?;
+
+        self.stats.save(&self.config.stats_path)
+            .with_context(|| "Failed to save stats")?;
+
+        Ok(())
     }
 
     pub fn play_blackjack(&mut self) -> Result<()> {
@@ -477,24 +497,24 @@ impl Casino {
                 let hand = &self.blackjack.player_hands[i];
 
                 if self.blackjack.dealer_hand.is_bust() {
-                    let bet = self.blackjack.bet;
-                    self.stats.blackjack.record_win(bet);
-                    self.add_bankroll(bet);
+                    let payout = self.blackjack.bet + self.blackjack.bet;
+                    self.stats.blackjack.record_win(payout);
+                    self.add_bankroll(payout);
                     println!(
                         "DEALER BUST! You receive {}. You now have {}",
-                        bet, self.bankroll
+                        payout, self.bankroll
                     );
                 } else if self.blackjack.dealer_hand.blackjack_sum() == hand.blackjack_sum() {
                     self.stats.blackjack.record_push();
                     self.bankroll += self.blackjack.bet;
                     println!("PUSH! Nobody wins.");
                 } else if self.blackjack.dealer_hand.blackjack_sum() > hand.blackjack_sum() {
-                    let bet = self.blackjack.bet;
-                    self.stats.blackjack.record_loss(bet);
+                    let payout = self.blackjack.bet + self.blackjack.bet;
+                    self.stats.blackjack.record_loss(payout);
                     self.stats.update_bankroll(self.bankroll);
                     println!(
                         "HOUSE WINS! You lose {}. You now have {}",
-                        bet, self.bankroll
+                        payout, self.bankroll
                     );
                 } else if hand.is_natural_blackjack() {
                     let payout = self.blackjack.natural_blackjack_payout();
@@ -505,12 +525,12 @@ impl Casino {
                         payout, self.bankroll
                     );
                 } else {
-                    let bet = self.blackjack.bet;
-                    self.stats.blackjack.record_win(bet);
-                    self.add_bankroll(bet);
+                    let payout = self.blackjack.bet + self.blackjack.bet;
+                    self.stats.blackjack.record_win(payout);
+                    self.add_bankroll(payout);
                     println!(
                         "YOU WIN! You receive {}. You now have {}",
-                        bet, self.bankroll
+                        payout, self.bankroll
                     );
                 }
             }
@@ -540,7 +560,7 @@ impl Casino {
             );
         }
 
-        self.save();
+        self.save()?;
         Ok(())
     }
 }
@@ -604,27 +624,3 @@ impl BlackjackConfig {
     }
 }
 
-#[derive(Deserialize, Debug, Serialize)]
-struct CasinoState {
-    bankroll: Money,
-    shoe: Shoe,
-}
-
-impl CasinoState {
-    pub fn load(path: &Path) -> Result<Self> {
-        let state_string = fs::read_to_string(path)?;
-        let state: CasinoState = toml::from_str(&state_string)
-            .with_context(|| "Unable to parse Casino state from file")?;
-
-        Ok(state)
-    }
-
-    pub fn save(&self, path: &Path) -> Result<()> {
-        fs::create_dir_all(path.parent().unwrap())
-            .with_context(|| "Couldn't create save directory")?;
-        fs::write(
-            path,
-            toml::to_string(&self).expect("Couldn't serialize save data!"),
-        ).with_context(|| "Failed to write state to path")
-    }
-}

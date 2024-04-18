@@ -61,7 +61,7 @@ pub fn play_roulette() -> Result<()> {
         );
     }
 
-    casino.save();
+    casino.save()?;
 
     Ok(())
 }

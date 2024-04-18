@@ -7,7 +7,7 @@ use crate::money::Money;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Statistics {
     #[serde(default)]
     pub biggest_bankroll: Money,
@@ -53,7 +53,7 @@ impl Statistics {
     }
 }
 
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SlotMachineStatistics {
     pub total_pulls: u32,
     pub money_won: Money,
@@ -75,7 +75,7 @@ impl SlotMachineStatistics {
     }
 }
 
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct RouletteStatistics {
     pub spins_won: u32,
     pub spins_lost: u32,
@@ -103,7 +103,7 @@ impl RouletteStatistics {
     }
 }
 
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct BlackjackStatistics {
     pub hands_won: u32,
     pub hands_lost: u32,

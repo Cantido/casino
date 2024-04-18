@@ -59,7 +59,7 @@ pub fn play_craps() -> Result<()> {
         casino.add_bankroll(payout);
         println!("You receive {}. You now have {}", payout, casino.bankroll);
 
-        casino.save();
+        casino.save()?;
 
         return Ok(());
     }
@@ -69,7 +69,7 @@ pub fn play_craps() -> Result<()> {
         casino.subtract_bankroll(pass_bet.amount)?;
         println!("You lose {}. You now have {}", pass_bet.amount, casino.bankroll);
 
-        casino.save();
+        casino.save()?;
 
         return Ok(());
     }
@@ -154,7 +154,7 @@ pub fn play_craps() -> Result<()> {
                 if lost_amount > Money::ZERO {
                     casino.bankroll -= lost_amount;
                     println!("You lose {}. You now have {}", lost_amount, casino.bankroll);
-                    casino.save();
+                    casino.save()?;
                 }
             }
 
@@ -162,7 +162,7 @@ pub fn play_craps() -> Result<()> {
         }
     }
 
-    casino.save();
+    casino.save()?;
 
     Ok(())
 }
