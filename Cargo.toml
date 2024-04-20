@@ -22,7 +22,8 @@ inquire = "0.6.2"
 itertools = "0.12.1"
 num = { version = "0.4.1", features = ["serde"] }
 rand = "0.8.5"
-rust_decimal = { version = "1.33.1", features = ["serde-with-str"] }
+ratatui = "0.26.2"
+rust_decimal = { version = "1.33.1", features = ["serde-with-str", "maths"] }
 serde = { version = "1.0.193", features = ["derive"] }
 spinners = "4.1.1"
 toml = { version = "0.8.8", features = ["display", "parse"] }

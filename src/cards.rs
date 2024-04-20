@@ -11,6 +11,17 @@ pub enum Suit {
     Spades,
 }
 
+impl Suit {
+    pub fn symbol(&self) -> char {
+        match self {
+            Self::Clubs => '♣',
+            Self::Diamonds => '♦',
+            Self::Hearts => '♥',
+            Self::Spades => '♠',
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Value {
     Ace,
@@ -26,6 +37,26 @@ pub enum Value {
     Jack,
     Queen,
     King,
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ace => f.pad("A"),
+            Self::Two => f.pad("2"),
+            Self::Three => f.pad("3"),
+            Self::Four => f.pad("4"),
+            Self::Five => f.pad("5"),
+            Self::Six => f.pad("6"),
+            Self::Seven => f.pad("7"),
+            Self::Eight => f.pad("8"),
+            Self::Nine => f.pad("9"),
+            Self::Ten => f.pad("10"),
+            Self::Jack => f.pad("J"),
+            Self::Queen => f.pad("Q"),
+            Self::King => f.pad("K"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

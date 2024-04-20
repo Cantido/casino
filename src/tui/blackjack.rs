@@ -1,5 +1,3 @@
-pub mod blackjack;
-
 use crossterm::{
     event::{self, Event, KeyCode},
     terminal::{

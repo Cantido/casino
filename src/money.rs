@@ -1,6 +1,6 @@
 use anyhow::Context;
 use num::rational::Ratio;
-use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
@@ -22,6 +22,14 @@ impl Money {
 
     pub fn is_sign_positive(&self) -> bool {
         self.0.is_sign_positive()
+    }
+
+    pub fn major_digit_count(&self) -> u32 {
+        self.0.abs().floor().log10().to_u32().unwrap()
+    }
+
+    pub fn abs(&self) -> Self {
+        Self(self.0.abs())
     }
 }
 
@@ -87,6 +95,14 @@ impl Div<i64> for Money {
 
     fn div(self, other: i64) -> Self::Output {
         Money(self.0.div(Decimal::new(other, 0)).round_dp(2))
+    }
+}
+
+impl Mul<i32> for Money {
+    type Output = Money;
+
+    fn mul(self, other: i32) -> Money {
+        Money(self.0.mul(Decimal::new(other.into(), 0)))
     }
 }
 

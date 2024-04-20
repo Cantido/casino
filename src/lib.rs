@@ -6,4 +6,5 @@ pub mod money;
 pub mod roulette;
 pub mod slots;
 pub mod statistics;
+pub mod tui;
 

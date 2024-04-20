@@ -132,19 +132,19 @@ pub struct Blackjack {
     config: BlackjackConfig,
     shoe: Shoe,
     #[serde(skip)]
-    dealer_hand: Hand,
+    pub dealer_hand: Hand,
     #[serde(skip)]
-    player_hands: Vec<Hand>,
+    pub player_hands: Vec<Hand>,
     #[serde(skip)]
-    bet: Money,
+    pub bet: Money,
     #[serde(skip)]
-    insurance: bool,
+    pub insurance: bool,
     #[serde(skip)]
-    splitting: bool,
+    pub splitting: bool,
     #[serde(skip)]
-    doubling_down: bool,
+    pub doubling_down: bool,
     #[serde(skip)]
-    current_hand: usize,
+    pub current_hand: usize,
 }
 
 impl Blackjack {
@@ -196,7 +196,11 @@ impl Blackjack {
     }
 
     pub fn initial_deal(&mut self) {
+        assert!(self.bet != Money::ZERO, "You must place a bet before dealing cards.");
         assert!(self.dealer_hand.cards.is_empty(), "Can't do the initial deal when cards have already been dealt.");
+
+        self.dealer_hand = Hand::new_hidden(1);
+        self.player_hands.push(Hand::new());
 
         self.card_to_dealer();
         self.card_to_player();
@@ -260,13 +264,49 @@ impl Blackjack {
     pub fn natural_blackjack_payout(&self) -> Money {
         self.bet + self.bet * self.config.blackjack_payout_ratio
     }
+
+    pub fn payout(&self) -> Money {
+        let mut payout = self.bet * -1;
+
+        if self.splitting || self.doubling_down {
+            payout -= self.bet;
+        }
+
+        if self.insurance {
+            payout -= self.bet;
+        }
+
+        for hand in self.player_hands.iter() {
+            if !hand.is_bust() && ((hand.blackjack_sum() > self.dealer_hand.blackjack_sum()) || self.dealer_hand.is_bust()) {
+                if hand.is_natural_blackjack() {
+                    payout += self.bet + self.bet * self.config.blackjack_payout_ratio;
+                } else {
+                    payout += self.bet + self.bet * self.config.payout_ratio;
+                }
+
+                if self.doubling_down {
+                    payout += self.bet + self.bet * self.config.payout_ratio;
+                }
+            }
+
+            if !hand.is_bust() && hand.blackjack_sum() == self.dealer_hand.blackjack_sum() {
+                payout += self.bet;
+            }
+        }
+
+        if self.insurance && self.dealer_hand.is_natural_blackjack() {
+            payout += self.bet + self.bet * self.config.insurance_payout_ratio;
+        }
+
+        payout
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Casino {
     pub config: Config,
     pub bankroll: Money,
-    blackjack: Blackjack,
+    pub blackjack: Blackjack,
     #[serde(skip)]
     pub stats: Statistics,
 }

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use casino::blackjack::Casino;
+use casino::{blackjack::Casino, tui::render_tui};
 use casino::config::Config;
 use casino::roulette::play_roulette;
 use casino::slots::play_slots;
@@ -25,6 +25,8 @@ enum Commands {
     Slots,
     /// Play a game of craps
     Craps,
+    /// Play game in the full terminal
+    TUI,
     /// Show lifetime statistics
     Stats,
     /// Show currency balance
@@ -127,6 +129,9 @@ fn main() -> Result<()> {
         }
         Some(Commands::Craps) => {
             play_craps()?;
+        }
+        Some(Commands::TUI) => {
+            render_tui()?;
         }
         Some(Commands::Balance) => {
             let state = Casino::from_filesystem()?;
