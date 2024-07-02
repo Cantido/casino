@@ -6,7 +6,7 @@ edition = "2021"
 authors = ["Rosa Richter"]
 readme = "README.md"
 repository = "https://github.com/Cantido/casino"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 categories = ["command-line-utilities", "games"]
 keywords = ["gambling", "blackjack", "card_games"]
 
