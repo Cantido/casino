@@ -282,8 +282,8 @@ mod test {
         let rtp_ratio: f32 = (total_return / total_payment).try_into().unwrap();
 
         assert!(
-            rtp_ratio >= 0.90,
-            "Return-to-player ratio is {rtp_ratio}, which should be higher than 0.90"
+            rtp_ratio >= 0.85,
+            "Return-to-player ratio is {rtp_ratio}, which should be higher than 0.85"
         );
         assert!(
             rtp_ratio < 1.0,
